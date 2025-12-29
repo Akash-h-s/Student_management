@@ -1,9 +1,21 @@
 import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import { setUser, setRole } from "../features/auth/authSlice";
 import { Link } from "react-router-dom";
+
 type Role = "admin" | "teacher" | "parent" | "student";
 
+interface InputConfig {
+  name: string;
+  placeholder: string;
+  type?: string;
+  roles?: Role[]; // only show for these roles
+}
+
 export default function Signup() {
-  const [role, setRole] = useState<Role | "">("");
+  const dispatch = useDispatch();
+
+  const [role, setLocalRole] = useState<Role | "">("");
   const [form, setForm] = useState({
     schoolName: "",
     fullName: "",
@@ -18,6 +30,12 @@ export default function Signup() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedRole = e.target.value as Role;
+    setLocalRole(selectedRole);
+    dispatch(setRole(selectedRole));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -29,117 +47,75 @@ export default function Signup() {
     if (form.password !== form.confirmPassword)
       return alert("Passwords do not match");
 
-    alert(`Signup Successful!\nRole: ${role.toUpperCase()}`);
-
     const user = {
       name: form.fullName || form.email.split("@")[0],
+      email: form.email,
       role: role,
     };
+
+    dispatch(setUser(user));
     localStorage.setItem("user", JSON.stringify(user));
+    alert(`Signup Successful!\nRole: ${role.toUpperCase()}`);
     window.location.href = "/";
   };
 
+  // Define all input fields in one array
+  const inputs: InputConfig[] = [
+    { name: "schoolName", placeholder: "School Name", roles: ["admin"] },
+    { name: "fullName", placeholder: "Full Name", roles: ["admin", "teacher", "student"] },
+    { name: "studentId", placeholder: "Student ID / Roll No", roles: ["student"] },
+    { name: "email", placeholder: "Email", roles: ["admin", "teacher", "student", "parent"] },
+    { name: "confirmEmail", placeholder: "Confirm Email", roles: ["teacher"] },
+    { name: "password", placeholder: "Password", type: "password", roles: ["admin", "teacher", "student", "parent"] },
+    { name: "confirmPassword", placeholder: "Confirm Password", type: "password", roles: ["admin", "teacher", "student", "parent"] },
+  ];
+
   return (
-    <div className="flex justify-center mt-[50px]">
-      <div className="w-[400px] p-[25px] rounded-[12px] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
-        <h2 className="text-center mb-[20px] font-semibold text-[1.5rem]">
-          Signup
-        </h2>
+    <div className="flex justify-center mt-12">
+      <div className="w-96 p-6 rounded-lg bg-white shadow-lg">
+        <h2 className="text-center mb-5 font-semibold text-xl">Signup</h2>
 
-        {/* Role Buttons */}
-        <div className="flex justify-between mb-[20px]">
-          {(["admin", "teacher", "parent", "student"] as Role[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRole(r)}
-              className={`w-[23%] py-[9px] rounded-[6px] text-[14px] transition duration-200 ${
-                role === r
-                  ? "bg-[#007bff] text-white"
-                  : "bg-[#eee] text-black hover:bg-gray-300"
-              }`}
-            >
-              {r.toUpperCase()}
-            </button>
+        {/* Role Selector */}
+        <label className="font-semibold text-gray-700 mb-2 block">Role</label>
+        <select
+          value={role}
+          onChange={handleRoleChange}
+          className="w-full p-2 mb-4 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Role</option>
+          {(["admin", "teacher", "parent", "student"] as Role[]).map(r => (
+            <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
           ))}
-        </div>
+        </select>
 
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {role === "admin" && (
-            <input
-              className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="text"
-              placeholder="School Name"
-              name="schoolName"
-              onChange={handleChange}
-            />
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {inputs.map((input) =>
+            role && input.roles?.includes(role) ? (
+              <input
+                key={input.name}
+                className="w-full p-2 rounded border mb-3 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type={input.type || "text"}
+                placeholder={input.placeholder}
+                name={input.name}
+                value={(form as any)[input.name]}
+                onChange={handleChange}
+              />
+            ) : null
           )}
-
-          {(role === "admin" || role === "teacher" || role === "student") && (
-            <input
-              className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="text"
-              placeholder="Full Name"
-              name="fullName"
-              onChange={handleChange}
-            />
-          )}
-
-          {role === "student" && (
-            <input
-              className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="text"
-              placeholder="Student ID / Roll No"
-              name="studentId"
-              onChange={handleChange}
-            />
-          )}
-
-          <input
-            className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            type="email"
-            placeholder="Email"
-            name="email"
-            onChange={handleChange}
-          />
-
-          {role === "teacher" && (
-            <input
-              className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="email"
-              placeholder="Confirm Email"
-              name="confirmEmail"
-              onChange={handleChange}
-            />
-          )}
-
-          <input
-            className="w-full p-[10px] mb-[20px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            type="password"
-            placeholder="Password"
-            name="password"
-            onChange={handleChange}
-          />
-
-          <input
-            className="w-full p-[10px] rounded-[6px] border border-[#ccc] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            type="password"
-            placeholder="Confirm Password"
-            name="confirmPassword"
-            onChange={handleChange}
-          />
 
           <button
             type="submit"
-            className="w-full p-[12px] mt-[10px] rounded-[6px] bg-[#28a745] text-white text-[16px] transition hover:bg-green-700"
+            className="w-full p-3 mt-2 rounded bg-green-600 text-white hover:bg-green-700 transition"
           >
             Continue
           </button>
         </form>
 
-        <p className="text-[px] mt-[20px] text-center">
-           Already have an account? <Link to="/login">Login</Link>
+        <p className="text-center mt-4 text-sm">
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-600 hover:underline">
+            Login
+          </Link>
         </p>
       </div>
     </div>

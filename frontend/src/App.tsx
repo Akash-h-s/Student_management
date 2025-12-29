@@ -9,6 +9,7 @@ import Login from "./components/Login";
 import { Routes, Route } from "react-router-dom";
 import Need from "./components/Need";
 import HelpUs from "./components/HelpUs";
+import Adminservices from "./components/Adminservices";
 
 export default function App() {
   return (
@@ -33,11 +34,12 @@ export default function App() {
         <AboutUs />
       <Footer/>
         </>} />
-        <Route path="/services" element={<Facilities />} />
+        <Route path="/services" element={<Adminservices/>} />
         <Route path="/helpus" element={<HelpUs/>}/>
         <Route path="/signup" element={<Signup/>}/>
         <Route path="/login" element={<Login/>}/>
       </Routes>
+      
     </>
   );
 }

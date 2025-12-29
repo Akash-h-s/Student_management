@@ -65,6 +65,7 @@ const Need: React.FC = () => {
           </div>
         </div>
       </div>
+
       <style>
         {`
           @keyframes scrollDown {
@@ -78,11 +79,11 @@ const Need: React.FC = () => {
           }
 
           .animate-scrollDown {
-            animation: scrollDown 16s linear infinite;
+            animation: scrollDown 3s linear infinite;
           }
 
           .animate-scrollUp {
-            animation: scrollUp 16s linear infinite;
+            animation: scrollUp 3s linear infinite;
           }
         `}
       </style>
