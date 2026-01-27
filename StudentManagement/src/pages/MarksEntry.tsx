@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/MarksEntry.tsx
+import React, { useState } from 'react';
 import { Save, Search, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,8 +18,7 @@ interface MarkEntry {
 }
 
 const MarksEntrySystem: React.FC = () => {
-  const { user } = useAuth(); // Get user from auth context
-  const teacherId = user?.teacher_id ? parseInt(user.teacher_id) : null; // Get teacher_id from auth
+  const { teacherId, user } = useAuth();
   const maxMarks = 100;
 
   // Manual input fields
@@ -34,13 +34,6 @@ const MarksEntrySystem: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-
-  // Check if user is a teacher on mount
-  useEffect(() => {
-    if (!user || user.role !== 'teacher') {
-      setErrorMessage('Access denied. Only teachers can enter marks.');
-    }
-  }, [user]);
 
   const calculateGrade = (marks: number): string => {
     if (marks >= 90) return 'A+';
@@ -93,9 +86,14 @@ const MarksEntrySystem: React.FC = () => {
     setMarksData({});
 
     try {
+      const token = localStorage.getItem('authToken');
+      
       const response = await fetch("http://localhost:3000/hasura/fetch-students", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           class_name: className.trim(),
           section_name: sectionName.trim(),
@@ -138,7 +136,7 @@ const MarksEntrySystem: React.FC = () => {
       setSearching(false);
     } catch (error) {
       console.error('Error fetching students:', error);
-      setErrorMessage('Database connection error. Is SAM running?');
+      setErrorMessage('Database connection error. Is the server running?');
       setSearching(false);
     }
   };
@@ -166,7 +164,9 @@ const MarksEntrySystem: React.FC = () => {
     setErrorMessage('');
 
     try {
-      // Prepare data for mutation
+      const token = localStorage.getItem('authToken');
+      
+      // Prepare data - NO teacher_id in payload (backend will extract from token)
       const marksEntries = marksToSave.map(mark => ({
         student_id: mark.student_id,
         subject_name: subjectName.trim(),
@@ -174,7 +174,6 @@ const MarksEntrySystem: React.FC = () => {
         class_name: className.trim(),
         section_name: sectionName.trim(),
         academic_year: academicYear.trim(),
-        teacher_id: teacherId,
         marks_obtained: parseFloat(mark.marks_obtained),
         max_marks: maxMarks,
         grade: mark.grade,
@@ -184,7 +183,10 @@ const MarksEntrySystem: React.FC = () => {
 
       const response = await fetch("http://localhost:3000/hasura/marks-entry", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // Backend extracts teacher_id from this
+        },
         body: JSON.stringify({
           action: 'save',
           data: {
@@ -212,11 +214,13 @@ const MarksEntrySystem: React.FC = () => {
       setSaveStatus('success');
       setLoading(false);
       
+      console.log('Marks saved successfully by teacher:', result.teacher_id);
+      
       // Auto-hide success message after 3 seconds
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {
       console.error('Error saving marks:', error);
-      setErrorMessage('Database connection error. Is SAM running?');
+      setErrorMessage('Database connection error. Is the server running?');
       setSaveStatus('error');
       setLoading(false);
     }
@@ -230,26 +234,6 @@ const MarksEntrySystem: React.FC = () => {
     examName.trim() !== '' &&
     Object.values(marksData).some(mark => mark.marks_obtained !== '');
 
-  // Show error if not a teacher
-  if (!user || user.role !== 'teacher') {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md">
-          <div className="text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
-            <p className="text-gray-600 mb-4">
-              Only teachers can access the marks entry system.
-            </p>
-            <p className="text-sm text-gray-500">
-              Current role: {user?.role || 'Not logged in'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -257,10 +241,12 @@ const MarksEntrySystem: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800 mb-6">Marks Entry System</h1>
           
           {/* Teacher Info */}
-          {teacherId && user && (
+          {user && teacherId && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Logged in as:</span> {user.name} (Teacher ID: {teacherId})
+                <span className="font-semibold">Teacher:</span> {user.name} | 
+                <span className="font-semibold"> Email:</span> {user.email} | 
+                <span className="font-semibold"> ID:</span> {teacherId}
               </p>
             </div>
           )}

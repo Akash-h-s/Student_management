@@ -1,20 +1,25 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
-import "./index.css";
-import { Provider } from "react-redux";
-const root = document.getElementById("root");
-import { store } from "./app/store";
+// src/main.tsx
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { ApolloProvider } from '@apollo/client';
+import apolloClient  from './lib/apolloClient';
+import { AuthProvider } from './context/AuthContext';
+import App from './App';
+import './index.css';
 
-if (!root) throw new Error("Root element not found");
+const root = document.getElementById('root');
+
+if (!root) throw new Error('Root element not found');
 
 createRoot(root).render(
   <React.StrictMode>
-   <Provider store={store}>
+    <ApolloProvider client={apolloClient}>
       <BrowserRouter>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </BrowserRouter>
-    </Provider>
+    </ApolloProvider>
   </React.StrictMode>
 );
