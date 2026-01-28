@@ -2,26 +2,26 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 // Components
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Backgroundstyle from './components/Backgroundstyle';
-import Facilities from './components/Facilities';
-import AboutUs from './components/AboutUs';
-import Need from './components/Need';
-import HelpUs from './components/HelpUs';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import ProtectedRoute from './components/ProtectedRoute';
+import Navbar from './components/Navbar/Navbar';
+import Footer from './components/Footer/Footer';
+import Backgroundstyle from './components/Backgroundstyle/Backgroundstyle';
+import Facilities from './components/Facilities/Facilities';
+import AboutUs from './components/AboutUs/AboutUs';
+import Need from './components/Need/Need';
+import HelpUs from './components/HelpUs/HelpUs';
+import Login from './components/Login/Login';
+import Signup from './components/Signup/Signup';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 
 // Dashboards & Pages
-import AdminDashboard from './pages/AdminDashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import ParentDashboard from './pages/ParentDashboard';
+import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
+import TeacherDashboard from './pages/TeacherDashboard/TeacherDashboard';
+import ParentDashboard from './pages/ParentDashboard/ParentDashboard';
 import StudentDashboard from './pages/StudentDashboard';
-import AdminUpload from './pages/AdminUpload';
-import MarksEntry from './pages/MarksEntry';
-import ChatPage from './pages/ChatPage';
-import StudentDetails from './pages/StudentDetails';
+import AdminUpload from './pages/AdminUpload/AdminUpload';
+import MarksEntry from './pages/MarksEntry/MarksEntry';
+import ChatPage from './pages/ChatPage/ChatPage';  // This will now use Apollo!
+import StudentDetails from './pages/StudentDetails/StudentDetails';
 
 function Unauthorized() {
   return (
