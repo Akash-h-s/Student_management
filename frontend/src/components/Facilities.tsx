@@ -24,32 +24,33 @@ function Facilities() {
   };
 
   return (
-    <div className="bg-[#0C2B4E] px-[20px] py-[60px] text-center font-akash">
-      <h1 className="text-[40px] !text-[white] mb-[5px] font-semibold">
+    <div className="bg-slate-800 px-5 py-16 text-center font-akash">
+      <h1 className="text-4xl text-white mb-1 font-semibold">
         Facilities for Students
       </h1>
 
-      <p className="text-[18px] text-[white] mb-[40px]">
+      <p className="text-lg text-white mb-10">
         Supporting education through{" "}
-        <span className="text-[#e67e22] font-bold">benefits</span> and resources
+        <span className="text-orange-500 font-bold">benefits</span> and resources
       </p>
+
       <div className="flex justify-center">
-        <div className="grid grid-cols-2 gap-y-[40px] gap-x-[60px] max-w-[900px] w-full">
+        <div className="grid grid-cols-2 gap-y-10 gap-x-16 max-w-3xl w-full">
           {facilities.map((item, i) => (
             <div
               key={i}
               onClick={handleClick}
-              className="flex items-center gap-[15px] text-left cursor-pointer"
+              className="flex items-center gap-4 text-left cursor-pointer"
             >
-              <div className="w-[65px] h-[65px] bg-[#ddd] rounded-[12px] text-[30px] flex items-center justify-center">
+              <div className="w-16 h-16 bg-gray-300 rounded-xl text-3xl flex items-center justify-center">
                 {item.icon}
               </div>
 
               <div>
-                <h3 className="text-[20px] text-[white] leading-none">
+                <h3 className="text-xl text-white leading-none">
                   {item.title}
                 </h3>
-                <p className="text-[14px] text-[bisque] mt-[3px] max-w-[300px]">
+                <p className="text-sm text-orange-200 mt-1 max-w-xs">
                   {item.desc}
                 </p>
               </div>
@@ -59,30 +60,18 @@ function Facilities() {
       </div>
 
       {popup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
-          <div className="bg-white p-[25px] rounded-[10px] w-[350px] text-center animate-popup">
-            <h3>{message}</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-80 text-center animate-scale">
+            <h3 className="text-lg font-medium">{message}</h3>
             <button
               onClick={() => setPopup(false)}
-              className="mt-[15px] px-[18px] py-[10px] bg-[#0C2B4E] text-white rounded-[6px] hover:bg-[#0a203b]"
+              className="mt-4 px-5 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
             >
               Close
             </button>
           </div>
         </div>
       )}
-
-      <style>
-        {`
-          @keyframes popupAnim {
-            from { transform: scale(0.7); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-          }
-          .animate-popup {
-            animation: popupAnim 0.3s ease-out;
-          }
-        `}
-      </style>
     </div>
   );
 }
