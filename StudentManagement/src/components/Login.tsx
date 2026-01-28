@@ -49,11 +49,8 @@ function Login() {
       console.log('Login response:', data);
 
       if (data.success) {
-        // Store user data with role-specific IDs in auth context
         login(data.user, data.token);
         alert(`Welcome, ${data.user.name}`);
-
-        // Role-based navigation
         switch (data.user.role) {
           case 'admin':
             navigate('/admin/dashboard');

@@ -1,5 +1,4 @@
-// src/pages/MarksEntry.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Search, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,8 +16,19 @@ interface MarkEntry {
   remarks: string;
 }
 
+// Helper function to create mock JWT token for development
+function createMockToken(teacherId: number): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(JSON.stringify({ teacher_id: teacherId, sub: teacherId }));
+  const signature = 'mock-signature-for-development';
+  return `${header}.${payload}.${signature}`;
+}
+
 const MarksEntrySystem: React.FC = () => {
-  const { teacherId, user } = useAuth();
+  // ✅ Get teacher ID from Auth Context
+  const { user: currentUser } = useAuth();
+  const teacherId = currentUser?.id;
+  const teacherName = currentUser?.name;
   const maxMarks = 100;
 
   // Manual input fields
@@ -34,6 +44,15 @@ const MarksEntrySystem: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Show error if teacher is not authenticated
+  useEffect(() => {
+    if (!teacherId) {
+      setErrorMessage('Teacher not authenticated. Please log in.');
+    } else {
+      setErrorMessage('');
+    }
+  }, [teacherId]);
 
   const calculateGrade = (marks: number): string => {
     if (marks >= 90) return 'A+';
@@ -75,6 +94,11 @@ const MarksEntrySystem: React.FC = () => {
   };
 
   const handleFetchStudents = async () => {
+    if (!teacherId) {
+      setErrorMessage('Teacher ID not found. Please log in again.');
+      return;
+    }
+
     if (!className.trim() || !sectionName.trim()) {
       setErrorMessage('Please enter both class and section');
       return;
@@ -86,13 +110,11 @@ const MarksEntrySystem: React.FC = () => {
     setMarksData({});
 
     try {
-      const token = localStorage.getItem('authToken');
-      
       const response = await fetch("http://localhost:3000/hasura/fetch-students", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${createMockToken(teacherId)}`
         },
         body: JSON.stringify({
           class_name: className.trim(),
@@ -136,14 +158,14 @@ const MarksEntrySystem: React.FC = () => {
       setSearching(false);
     } catch (error) {
       console.error('Error fetching students:', error);
-      setErrorMessage('Database connection error. Is the server running?');
+      setErrorMessage('Database connection error. Is SAM running?');
       setSearching(false);
     }
   };
 
   const handleSaveMarks = async () => {
     if (!teacherId) {
-      setErrorMessage('Teacher ID not found. Please login again.');
+      setErrorMessage('Teacher ID not found. Please log in again.');
       return;
     }
 
@@ -164,9 +186,7 @@ const MarksEntrySystem: React.FC = () => {
     setErrorMessage('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      
-      // Prepare data - NO teacher_id in payload (backend will extract from token)
+      // Prepare data for mutation
       const marksEntries = marksToSave.map(mark => ({
         student_id: mark.student_id,
         subject_name: subjectName.trim(),
@@ -174,6 +194,7 @@ const MarksEntrySystem: React.FC = () => {
         class_name: className.trim(),
         section_name: sectionName.trim(),
         academic_year: academicYear.trim(),
+        teacher_id: teacherId,
         marks_obtained: parseFloat(mark.marks_obtained),
         max_marks: maxMarks,
         grade: mark.grade,
@@ -181,11 +202,13 @@ const MarksEntrySystem: React.FC = () => {
         is_finalized: false
       }));
 
+      console.log('Sending marks entries:', marksEntries);
+
       const response = await fetch("http://localhost:3000/hasura/marks-entry", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // Backend extracts teacher_id from this
+          "Authorization": `Bearer ${createMockToken(teacherId)}`
         },
         body: JSON.stringify({
           action: 'save',
@@ -196,6 +219,7 @@ const MarksEntrySystem: React.FC = () => {
       });
 
       const result = await response.json();
+      console.log('Save marks response:', result);
 
       if (!response.ok) {
         setErrorMessage(result.message || "Failed to save marks");
@@ -214,24 +238,23 @@ const MarksEntrySystem: React.FC = () => {
       setSaveStatus('success');
       setLoading(false);
       
-      console.log('Marks saved successfully by teacher:', result.teacher_id);
-      
       // Auto-hide success message after 3 seconds
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {
       console.error('Error saving marks:', error);
-      setErrorMessage('Database connection error. Is the server running?');
+      setErrorMessage('Database connection error. Is SAM running?');
       setSaveStatus('error');
       setLoading(false);
     }
   };
 
-  const canSearch = className.trim() !== '' && sectionName.trim() !== '';
+  const canSearch = className.trim() !== '' && sectionName.trim() !== '' && !!teacherId;
   const canSave = students.length > 0 && 
     className.trim() !== '' && 
     sectionName.trim() !== '' && 
     subjectName.trim() !== '' && 
     examName.trim() !== '' &&
+    !!teacherId &&
     Object.values(marksData).some(mark => mark.marks_obtained !== '');
 
   return (
@@ -241,12 +264,17 @@ const MarksEntrySystem: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800 mb-6">Marks Entry System</h1>
           
           {/* Teacher Info */}
-          {user && teacherId && (
+          {teacherId ? (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Teacher:</span> {user.name} | 
-                <span className="font-semibold"> Email:</span> {user.email} | 
-                <span className="font-semibold"> ID:</span> {teacherId}
+                <span className="font-semibold">Logged in as:</span> {teacherName} (Teacher ID: {teacherId})
+              </p>
+            </div>
+          ) : (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-sm text-red-800">
+                <span className="font-semibold">Not authenticated.</span> Please log in to continue.
               </p>
             </div>
           )}
@@ -262,7 +290,8 @@ const MarksEntrySystem: React.FC = () => {
                 value={className}
                 onChange={(e) => setClassName(e.target.value)}
                 placeholder="e.g., 10"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!teacherId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -275,7 +304,8 @@ const MarksEntrySystem: React.FC = () => {
                 value={sectionName}
                 onChange={(e) => setSectionName(e.target.value)}
                 placeholder="e.g., A"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!teacherId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -288,7 +318,8 @@ const MarksEntrySystem: React.FC = () => {
                 value={subjectName}
                 onChange={(e) => setSubjectName(e.target.value)}
                 placeholder="e.g., Mathematics"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!teacherId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -301,7 +332,8 @@ const MarksEntrySystem: React.FC = () => {
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
                 placeholder="e.g., Mid Term Exam"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!teacherId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -314,7 +346,8 @@ const MarksEntrySystem: React.FC = () => {
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
                 placeholder="e.g., 2024-25"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!teacherId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -461,7 +494,11 @@ const MarksEntrySystem: React.FC = () => {
               <Search className="w-16 h-16 mx-auto" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Loaded</h3>
-            <p className="text-gray-500">Enter class and section details above and click "Fetch Students" to begin</p>
+            <p className="text-gray-500">
+              {teacherId 
+                ? 'Enter class and section details above and click "Fetch Students" to begin'
+                : 'Please log in to load students'}
+            </p>
           </div>
         )}
       </div>

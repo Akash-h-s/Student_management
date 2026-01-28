@@ -144,7 +144,6 @@ function Navbar() {
           <h2 className="text-green-100 text-xl font-bold">EduCloud</h2>
         </Link>
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           {getNavLinks()}
 
@@ -197,7 +196,7 @@ function Navbar() {
           )}
         </nav>
 
-        {/* Mobile Menu Button */}
+       
         <button 
           className="md:hidden text-white"
           onClick={() => setOpen(!open)}
@@ -206,7 +205,7 @@ function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Navigation */}
+
       {open && (
         <div className="md:hidden bg-blue-800 px-6 py-4 space-y-3">
           {getNavLinks()}
