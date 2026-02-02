@@ -1,5 +1,7 @@
+// src/components/ChatSystem.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext'; // Import Auth Context
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
+import { useAuth } from '../../context/AuthContext';
 import { 
   MessageCircle, 
   Search, 
@@ -8,6 +10,17 @@ import {
   X, 
   Check
 } from 'lucide-react';
+import {
+  GET_USER_CHATS,
+  GET_CHAT_MESSAGES,
+  SEARCH_PARENTS,
+  GET_ALL_PARENTS,
+  CREATE_CHAT,
+  ADD_CHAT_PARTICIPANTS,
+  SEND_MESSAGE,
+  MARK_MESSAGES_READ,
+  CHECK_EXISTING_CHAT
+} from '../../graphql/chat';
 
 // Types
 interface User {
@@ -22,9 +35,9 @@ interface Message {
   id: number;
   sender_id: number;
   sender_name: string;
-  sender_type: string; // Added sender_type
+  sender_type: string;
   content: string;
-  timestamp: string;
+  created_at: string;
   is_read: boolean;
 }
 
@@ -38,30 +51,47 @@ interface Chat {
 }
 
 const ChatSystem: React.FC = () => {
-  // ✅ Get current user from Auth Context
   const { user: currentUser } = useAuth();
   
-  // Use actual user data
-  const currentUserId = currentUser?.id || 0;
+  const currentUserId = parseInt(currentUser?.id || '0');
   const currentUserRole = currentUser?.role || 'teacher';
   const currentUserName = currentUser?.name || '';
 
   // State
   const [activeView, setActiveView] = useState<'chats' | 'new-chat' | 'new-group'>('chats');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [searching, setSearching] = useState(false);
   
   // Group creation
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<User[]>([]);
-  const [availableParents, setAvailableParents] = useState<User[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Apollo Queries
+  const { data: chatsData, refetch: refetchChats } = useQuery(GET_USER_CHATS, {
+    variables: { user_id: currentUserId, user_type: currentUserRole },
+    skip: !currentUserId,
+    pollInterval: 3000, // Refetch every 3 seconds
+  });
+
+  const [getMessages, { data: messagesData }] = useLazyQuery(GET_CHAT_MESSAGES, {
+  fetchPolicy: 'network-only', // Always fetch fresh data
+  pollInterval: 3000,
+});
+
+  const [searchParents, { data: searchData, loading: searching }] = useLazyQuery(SEARCH_PARENTS);
+  
+  const [getAllParents, { data: allParentsData }] = useLazyQuery(GET_ALL_PARENTS);
+
+  const [checkExistingChat] = useLazyQuery(CHECK_EXISTING_CHAT);
+
+  // Apollo Mutations
+  const [createChatMutation] = useMutation(CREATE_CHAT);
+  const [addParticipantsMutation] = useMutation(ADD_CHAT_PARTICIPANTS);
+  const [sendMessageMutation] = useMutation(SEND_MESSAGE);
+  const [markMessagesReadMutation] = useMutation(MARK_MESSAGES_READ);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,111 +99,177 @@ const ChatSystem: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (currentUserId) {
-      loadChats();
-    }
-  }, [currentUserId]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (selectedChat) {
-        loadMessages(selectedChat.id);
-      }
-      // Also refresh chat list for new messages
-      if (currentUserId) {
-        loadChats();
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [selectedChat, currentUserId]);
+  }, [messagesData]);
 
   useEffect(() => {
     if (activeView === 'new-chat') {
-      searchParents('');
+      searchParents({ variables: { search: '%%' } });
     }
   }, [activeView]);
 
-  const loadChats = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/hasura/get-chats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId })
+  // Transform chats data
+ // Transform chats data
+const chats: Chat[] = React.useMemo(() => {
+  if (!chatsData?.chat_participants) return [];
+  
+  return chatsData.chat_participants.map((cp: any) => {
+    const chat = cp.chat;
+    
+    // Get participants excluding current user
+    const participants = chat.chat_participants
+      .filter((p: any) => p.user_id !== currentUserId)
+      .map((p: any) => {
+        // Get user info based on user_type
+        const userInfo = p.user_type === 'parent' ? p.parent : p.teacher;
+        
+        return {
+          id: p.user_id,
+          name: userInfo?.name || 'Unknown',
+          email: userInfo?.email || '',
+          role: p.user_type,
+        };
       });
-      const result = await response.json();
-      if (result.success) {
-        setChats(result.chats);
-      }
-    } catch (error) {
-      console.error('Error loading chats:', error);
-    }
-  };
 
-  const loadMessages = async (chatId: number) => {
-    try {
-      const response = await fetch('http://localhost:3000/hasura/get-messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, user_id: currentUserId })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setMessages(result.messages);
-      }
-    } catch (error) {
-      console.error('Error loading messages:', error);
+    // For direct chats, use participant's name as chat name
+    let chatName = chat.name;
+    if (chat.type === 'direct' && participants.length > 0) {
+      chatName = participants[0].name;
     }
-  };
 
-  const searchParents = async (query: string) => {
-    setSearching(true);
-    try {
-      const response = await fetch('http://localhost:3000/hasura/search-parents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search_query: query.trim() })
-      });
-      const result = await response.json();
-      
-      if (result.success) {
-        setSearchResults(result.parents);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('Error searching parents:', error);
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
+    return {
+      id: chat.id,
+      type: chat.type,
+      name: chatName,
+      participants,
+      last_message: chat.messages[0] ? {
+        id: chat.messages[0].id,
+        sender_id: chat.messages[0].sender_id,
+        sender_name: chat.messages[0].sender_name,
+        sender_type: chat.messages[0].sender_type,
+        content: chat.messages[0].content,
+        timestamp: chat.messages[0].created_at,
+        is_read: chat.messages[0].is_read,
+      } : undefined,
+      unread_count: chat.messages_aggregate.aggregate.count || 0,
+    };
+  });
+}, [chatsData, currentUserId]);
+
+  // Transform messages data
+  const messages: Message[] = React.useMemo(() => {
+    if (!messagesData?.messages) return [];
+    
+    return messagesData.messages.map((m: any) => ({
+      id: m.id,
+      sender_id: m.sender_id,
+      sender_name: m.sender_name,
+      sender_type: m.sender_type,
+      content: m.content,
+      timestamp: m.created_at,
+      is_read: m.is_read,
+    }));
+  }, [messagesData]);
+
+  // Transform search results
+  const searchResults: User[] = React.useMemo(() => {
+    if (!searchData?.parents) return [];
+    
+    return searchData.parents.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: 'parent' as const,
+      student_name: p.students[0]?.name,
+    }));
+  }, [searchData]);
+
+  // Transform available parents
+  const availableParents: User[] = React.useMemo(() => {
+    if (!allParentsData?.parents) return [];
+    
+    return allParentsData.parents.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: 'parent' as const,
+      student_name: p.students[0]?.name,
+    }));
+  }, [allParentsData]);
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    const searchTerm = query.trim() ? `%${query.trim()}%` : '%%';
+    searchParents({ variables: { search: searchTerm } });
   };
 
   const startDirectChat = async (parent: User) => {
     try {
-      const response = await fetch('http://localhost:3000/hasura/create-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'direct',
-          participants: [
-            { user_id: currentUserId, user_type: currentUserRole },
-            { user_id: parent.id, user_type: 'parent' }
-          ]
-        })
+      // Check if chat already exists
+      const { data: existingData } = await checkExistingChat({
+        variables: {
+          user1_id: currentUserId,
+          user1_type: currentUserRole,
+          user2_id: parent.id,
+          user2_type: 'parent',
+        },
       });
-      const result = await response.json();
-      if (result.success) {
-        setSelectedChat(result.chat);
+
+      if (existingData?.chats && existingData.chats.length > 0) {
+        const existingChat = existingData.chats.find((c: any) => 
+          c.chat_participants.length > 0
+        );
+        
+        if (existingChat) {
+          const chat: Chat = {
+            id: existingChat.id,
+            type: 'direct',
+            name: parent.name,
+            participants: [parent],
+            unread_count: 0,
+          };
+          setSelectedChat(chat);
+          getMessages({ variables: { chat_id: existingChat.id } });
+          setActiveView('chats');
+          setSearchQuery('');
+          return;
+        }
+      }
+
+      // Create new chat
+      const { data: chatData } = await createChatMutation({
+        variables: {
+          type: 'direct',
+          name: null,
+          created_by: currentUserId,
+        },
+      });
+
+      if (chatData?.insert_chats_one) {
+        const chatId = chatData.insert_chats_one.id;
+
+        // Add participants
+        await addParticipantsMutation({
+          variables: {
+            participants: [
+              { chat_id: chatId, user_id: currentUserId, user_type: currentUserRole },
+              { chat_id: chatId, user_id: parent.id, user_type: 'parent' },
+            ],
+          },
+        });
+
+        const newChat: Chat = {
+          id: chatId,
+          type: 'direct',
+          name: parent.name,
+          participants: [parent],
+          unread_count: 0,
+        };
+
+        setSelectedChat(newChat);
+        getMessages({ variables: { chat_id: chatId } });
         setActiveView('chats');
         setSearchQuery('');
-        setSearchResults([]);
-        loadChats();
-        loadMessages(result.chat.id);
-      } else {
-        alert('Failed to create chat: ' + result.message);
+        refetchChats();
       }
     } catch (error) {
       console.error('Error creating chat:', error);
@@ -181,20 +277,8 @@ const ChatSystem: React.FC = () => {
     }
   };
 
-  const loadAvailableParents = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/hasura/search-parents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search_query: '' })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setAvailableParents(result.parents);
-      }
-    } catch (error) {
-      console.error('Error loading parents:', error);
-    }
+  const loadAvailableParents = () => {
+    getAllParents();
   };
 
   const createGroup = async () => {
@@ -202,29 +286,37 @@ const ChatSystem: React.FC = () => {
       alert('Please enter a group name and select at least one member');
       return;
     }
+
     try {
-      const response = await fetch('http://localhost:3000/hasura/create-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data: chatData } = await createChatMutation({
+        variables: {
           type: 'group',
           name: groupName.trim(),
           created_by: currentUserId,
-          members: [
-            { user_id: currentUserId, user_type: currentUserRole },
-            ...selectedMembers.map(m => ({ user_id: m.id, user_type: 'parent' }))
-          ]
-        })
+        },
       });
-      const result = await response.json();
-      if (result.success) {
+
+      if (chatData?.insert_chats_one) {
+        const chatId = chatData.insert_chats_one.id;
+
+        const participants = [
+          { chat_id: chatId, user_id: currentUserId, user_type: currentUserRole },
+          ...selectedMembers.map(m => ({ 
+            chat_id: chatId, 
+            user_id: m.id, 
+            user_type: 'parent' 
+          })),
+        ];
+
+        await addParticipantsMutation({
+          variables: { participants },
+        });
+
         setGroupName('');
         setSelectedMembers([]);
         setActiveView('chats');
-        loadChats();
+        refetchChats();
         alert('Group created successfully!');
-      } else {
-        alert('Failed to create group: ' + result.message);
       }
     } catch (error) {
       console.error('Error creating group:', error);
@@ -232,27 +324,56 @@ const ChatSystem: React.FC = () => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!messageInput.trim() || !selectedChat) return;
-    try {
-      const response = await fetch('http://localhost:3000/hasura/send-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: selectedChat.id,
-          sender_id: currentUserId,
-          sender_type: currentUserRole,
-          content: messageInput.trim()
-        })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setMessageInput('');
-        loadMessages(selectedChat.id);
-        loadChats();
+  // Update the sendMessage function in ChatSystem component
+
+const sendMessage = async () => {
+  if (!messageInput.trim() || !selectedChat) return;
+
+  const tempMessage = messageInput.trim();
+  setMessageInput('');
+
+  try {
+    await sendMessageMutation({
+      variables: {
+        chat_id: selectedChat.id,
+        sender_id: currentUserId,
+        sender_name: currentUserName,
+        sender_type: currentUserRole,
+        content: tempMessage,
+      },
+    });
+
+    // Force immediate refetch
+    await getMessages({ 
+      variables: { chat_id: selectedChat.id },
+      fetchPolicy: 'network-only' // Force network request, ignore cache
+    });
+    
+    await refetchChats();
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    setMessageInput(tempMessage);
+    alert('Failed to send message');
+  }
+};
+  const handleChatSelect = async (chat: Chat) => {
+    setSelectedChat(chat);
+    getMessages({ variables: { chat_id: chat.id } });
+
+    // Mark messages as read
+    if (chat.unread_count > 0) {
+      try {
+        await markMessagesReadMutation({
+          variables: {
+            chat_id: chat.id,
+            user_id: currentUserId,
+          },
+        });
+        refetchChats();
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
     }
   };
 
@@ -263,37 +384,28 @@ const ChatSystem: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Convert UTC timestamp to IST
   const formatTime = (timestamp: string) => {
-    // Ensure timestamp is treated as UTC by appending 'Z' if not present
     let utcTimestamp = timestamp;
     if (!timestamp.endsWith('Z') && !timestamp.includes('+')) {
       utcTimestamp = timestamp + 'Z';
     }
     
-    // Parse as UTC
     const utcDate = new Date(utcTimestamp);
-    
-    // Convert to IST by adding 5 hours 30 minutes
     const istOffset = 5.5 * 60 * 60 * 1000;
     const istTime = utcDate.getTime() + istOffset;
     const istDate = new Date(istTime);
     
-    // Get current time in IST
     const nowUTC = new Date();
     const nowIST = new Date(nowUTC.getTime() + istOffset);
     
-    // Check if same day
     const istDateStr = istDate.toISOString().split('T')[0];
     const nowISTStr = nowIST.toISOString().split('T')[0];
     const isToday = istDateStr === nowISTStr;
     
-    // Check if yesterday
     const yesterdayIST = new Date(nowIST.getTime() - (24 * 60 * 60 * 1000));
     const yesterdayISTStr = yesterdayIST.toISOString().split('T')[0];
     const isYesterday = istDateStr === yesterdayISTStr;
     
-    // Format time in IST
     const hours = istDate.getUTCHours();
     const minutes = istDate.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -313,7 +425,6 @@ const ChatSystem: React.FC = () => {
     }
   };
 
-  // Show teacher/parent info based on user role
   const isTeacher = currentUserRole === 'teacher';
   const isParent = currentUserRole === 'parent';
 
@@ -332,7 +443,6 @@ const ChatSystem: React.FC = () => {
             </p>
           </div>
           
-          {/* ✅ Only show buttons for teachers */}
           {isTeacher && (
             <div className="flex gap-2">
               <button
@@ -380,10 +490,7 @@ const ChatSystem: React.FC = () => {
                 {chats.map(chat => (
                   <button
                     key={chat.id}
-                    onClick={() => {
-                      setSelectedChat(chat);
-                      loadMessages(chat.id);
-                    }}
+                    onClick={() => handleChatSelect(chat)}
                     className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
                       selectedChat?.id === chat.id ? 'bg-indigo-50' : ''
                     }`}
@@ -425,7 +532,7 @@ const ChatSystem: React.FC = () => {
           </div>
         )}
 
-        {/* New Chat Search - Only for teachers */}
+        {/* New Chat Search */}
         {activeView === 'new-chat' && isTeacher && (
           <div className="flex-1 flex flex-col">
             <div className="p-4 border-b border-gray-200">
@@ -441,10 +548,7 @@ const ChatSystem: React.FC = () => {
                   type="text"
                   placeholder="Search parents by name or email..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    searchParents(e.target.value);
-                  }}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -487,7 +591,7 @@ const ChatSystem: React.FC = () => {
           </div>
         )}
 
-        {/* New Group - Only for teachers */}
+        {/* New Group */}
         {activeView === 'new-group' && isTeacher && (
           <div className="flex-1 flex flex-col">
             <div className="p-4 border-b border-gray-200">
@@ -585,14 +689,13 @@ const ChatSystem: React.FC = () => {
                   <h2 className="font-semibold text-gray-900">{selectedChat.name}</h2>
                   <p className="text-xs text-gray-500">
                     {selectedChat.type === 'group' ? 
-                      `Group • ${selectedChat.participants.length} members` : 
+                      `Group • ${selectedChat.participants.length + 1} members` : 
                       isTeacher ? 'Parent' : 'Teacher'}
                   </p>
                 </div>
               </div>
             </div>
             
-            {/* ✅ FIXED: Show sender info for parents */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.map(message => {
                 const isOwn = message.sender_id === currentUserId;
@@ -601,7 +704,6 @@ const ChatSystem: React.FC = () => {
                 return (
                   <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-md ${isOwn ? 'order-2' : 'order-1'}`}>
-                      {/* Show sender name for group chats or when parent receives from teacher */}
                       {!isOwn && (
                         <p className="text-xs text-gray-500 mb-1 ml-3">
                           {message.sender_name}

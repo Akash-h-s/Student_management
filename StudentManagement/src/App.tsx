@@ -17,7 +17,7 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard/TeacherDashboard';
 import ParentDashboard from './pages/ParentDashboard/ParentDashboard';
-import StudentDashboard from './pages/StudentDashboard';
+import StudentDashboard from './pages/StudentDashboard/StudentDashboard';
 import AdminUpload from './pages/AdminUpload/AdminUpload';
 import MarksEntry from './pages/MarksEntry/MarksEntry';
 import ChatPage from './pages/ChatPage/ChatPage';  // This will now use Apollo!

@@ -1,7 +1,15 @@
 // src/components/Login.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLazyQuery } from '@apollo/client';
+import bcrypt from 'bcryptjs';
 import { useAuth } from '../../context/AuthContext';
+import {
+  GET_ADMIN_BY_EMAIL,
+  GET_TEACHER_BY_EMAIL,
+  GET_PARENT_BY_EMAIL,
+  GET_STUDENT_BY_ADMISSION_NUMBER,
+} from '../../graphql/login';
 
 function Login() {
   const navigate = useNavigate();
@@ -15,8 +23,12 @@ function Login() {
 
   const requiresPassword = role === 'admin' || role === 'teacher' || role === 'parent';
 
+  const [getAdmin] = useLazyQuery(GET_ADMIN_BY_EMAIL);
+  const [getTeacher] = useLazyQuery(GET_TEACHER_BY_EMAIL);
+  const [getParent] = useLazyQuery(GET_PARENT_BY_EMAIL);
+  const [getStudent] = useLazyQuery(GET_STUDENT_BY_ADMISSION_NUMBER);
+
   const handleLogin = async () => {
-   
     if (!identifier) {
       return setError(`Please enter your ${role === 'student' ? 'Admission Number' : 'Email'}`);
     }
@@ -33,43 +45,89 @@ function Login() {
     setError('');
 
     try {
-      // Login still goes through Lambda for authentication
-      const response = await fetch('http://localhost:3000/hasura/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: {
-            role: role.toLowerCase(),
-            identifier,
-            password: requiresPassword ? password : null,
-            studentName: role === 'student' ? studentName : null,
+      let userData: any = null;
+      let isValidPassword = true;
+
+      switch (role) {
+        case 'admin': {
+          const { data } = await getAdmin({ variables: { email: identifier } });
+          if (data?.admins && data.admins.length > 0) {
+            userData = data.admins[0];
+            if (password && userData.password_hash) {
+              isValidPassword = await bcrypt.compare(password, userData.password_hash);
+            }
           }
-        })
-      });
+          break;
+        }
 
-      const data = await response.json();
+        case 'teacher': {
+          const { data } = await getTeacher({ variables: { email: identifier } });
+          if (data?.teachers && data.teachers.length > 0) {
+            userData = data.teachers[0];
+            if (password && userData.password_hash) {
+              isValidPassword = await bcrypt.compare(password, userData.password_hash);
+            }
+          }
+          break;
+        }
 
-      if (data.success) {
-        // Save to Auth Context
-        login(data.user, data.token);
+        case 'parent': {
+          const { data } = await getParent({ variables: { email: identifier } });
+          if (data?.parents && data.parents.length > 0) {
+            userData = data.parents[0];
+            if (password && userData.password_hash) {
+              isValidPassword = await bcrypt.compare(password, userData.password_hash);
+            }
+          }
+          break;
+        }
 
-        // Navigate based on role
-        const routes: Record<string, string> = {
-          admin: '/admin/dashboard',
-          teacher: '/teacher/dashboard',
-          parent: '/parent/dashboard',
-          student: '/student/dashboard',
-        };
-
-        navigate(routes[data.user.role] || '/');
-      } else {
-        setError(data.message || 'Login failed');
+        case 'student': {
+          const { data } = await getStudent({
+            variables: {
+              admissionNumber: identifier,
+              name: studentName,
+            },
+          });
+          if (data?.students && data.students.length > 0) {
+            userData = data.students[0];
+          }
+          break;
+        }
       }
+
+      if (!userData) {
+        setError(`${role} not found with provided credentials`);
+        setLoading(false);
+        return;
+      }
+
+      if (!isValidPassword) {
+        setError('Invalid password');
+        setLoading(false);
+        return;
+      }
+      const user = {
+        id: userData.id?.toString() || '',
+        name: userData.name || userData.school_name || '',
+        email: userData.email || identifier,
+        role: role,
+      };
+
+      const token = `jwt-${user.id}-${Date.now()}`;
+      login(user, token);
+
+      const routes: Record<string, string> = {
+        admin: '/admin/dashboard',
+        teacher: '/teacher/dashboard',
+        parent: '/parent/dashboard',
+        student: '/student/dashboard',
+      };
+
+      navigate(routes[role] || '/');
     } catch (error: any) {
       console.error('Login error:', error);
-      setError('Network error: ' + error.message);
+      setError('Login failed: ' + error.message);
     } finally {
       setLoading(false);
     }

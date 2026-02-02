@@ -1,25 +1,11 @@
 
 import React, { useState } from 'react';
-import { useMutation, gql } from '@apollo/client';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { Link, useNavigate } from 'react-router-dom';
+import bcrypt from 'bcryptjs';
 import { useAuth } from '../../context/AuthContext';
 import { Building2, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
-
-const SIGNUP_MUTATION = gql`
-  mutation Signup($schoolName: String!, $email: String!, $password: String!, $phone: String!) {
-    signup(schoolName: $schoolName, email: $email, password: $password, phone: $phone) {
-      success
-      message
-      user {
-        id
-        name
-        email
-        role
-      }
-      token
-    }
-  }
-`;
+import { CHECK_ADMIN_EMAIL, INSERT_ADMIN } from '../../graphql/signup';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -33,25 +19,13 @@ export default function Signup() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
-  const [signupMutation, { loading }] = useMutation(SIGNUP_MUTATION, {
-    onCompleted: (data) => {
-      if (data.signup.success) {
-        login(data.signup.user, data.signup.token);
-        alert('Signup Successful!');
-        navigate('/admin/dashboard');
-      } else {
-        alert(data.signup.message || 'Signup failed');
-      }
-    },
-    onError: (error) => {
-      alert(error.message || 'Signup failed');
-    },
-  });
+  const [checkEmail] = useLazyQuery(CHECK_ADMIN_EMAIL);
+  const [insertAdmin] = useMutation(INSERT_ADMIN);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    // Clear error for this field
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' });
     }
@@ -83,41 +57,58 @@ export default function Signup() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  try {
-    const response = await fetch('http://localhost:3000/hasura/signup', {  // Updated path
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: {
-          schoolName: form.schoolName,
+    setLoading(true);
+
+    try {
+      // Check if email already exists
+      const { data: emailCheck } = await checkEmail({
+        variables: { email: form.email },
+      });
+
+      if (emailCheck?.admins && emailCheck.admins.length > 0) {
+        setErrors({ email: 'Email already registered' });
+        setLoading(false);
+        return;
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(form.password, 10);
+
+      // Insert new admin
+      const { data } = await insertAdmin({
+        variables: {
+          school_name: form.schoolName,
           email: form.email,
-          password: form.password,
+          password_hash: passwordHash,
           phone: form.phone,
-        }
-      })
-    });
+        },
+      });
 
-    const data = await response.json();
-    console.log('Response:', data);
-    
-    if (data.success) {
-      login(data.user, data.token);
-      alert('Signup successful!');
-      navigate('/admin/dashboard');
-    } else {
-      alert('Signup failed: ' + data.message);
+      if (data?.insert_admins_one) {
+        const user = {
+          id: data.insert_admins_one.id.toString(),
+          name: data.insert_admins_one.school_name,
+          email: data.insert_admins_one.email,
+          role: 'admin' as const,
+        };
+
+        const token = `jwt-${user.id}-${Date.now()}`;
+        login(user, token);
+
+        alert('Signup successful!');
+        navigate('/admin/dashboard');
+      }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      alert('Signup failed: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    console.error('Error:', error);
-    alert('Network error: ' + error.message);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-6">
@@ -214,8 +205,6 @@ export default function Signup() {
               </div>
             )}
           </div>
-
-          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Phone Number <span className="text-red-500">*</span>

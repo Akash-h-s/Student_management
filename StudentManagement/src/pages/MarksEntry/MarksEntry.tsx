@@ -1,6 +1,14 @@
+// src/components/MarksEntry/MarksEntrySystem.tsx
 import React, { useState, useEffect } from 'react';
 import { Save, Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { useAuth } from '../../context/AuthContext';
+import {
+  GET_STUDENTS_BY_CLASS_SECTION,
+  INSERT_MARKS,
+  GET_OR_CREATE_SUBJECT,
+  GET_OR_CREATE_EXAM,
+} from '../../graphql/marks';
 
 // Types
 interface Student {
@@ -16,18 +24,10 @@ interface MarkEntry {
   remarks: string;
 }
 
-// Helper function to create mock JWT token for development
-function createMockToken(teacherId: number): string {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ teacher_id: teacherId, sub: teacherId }));
-  const signature = 'mock-signature-for-development';
-  return `${header}.${payload}.${signature}`;
-}
-
 const MarksEntrySystem: React.FC = () => {
   // ✅ Get teacher ID from Auth Context
   const { user: currentUser } = useAuth();
-  const teacherId = currentUser?.id;
+  const teacherId = currentUser?.id ? parseInt(currentUser.id) : null;
   const teacherName = currentUser?.name;
   const maxMarks = 100;
 
@@ -40,10 +40,68 @@ const MarksEntrySystem: React.FC = () => {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [marksData, setMarksData] = useState<Record<number, MarkEntry>>({});
-  const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Apollo Client Queries and Mutations
+  const [fetchStudents, { loading: searching }] = useLazyQuery(
+    GET_STUDENTS_BY_CLASS_SECTION,
+    {
+      onCompleted: (data) => {
+        if (data?.class_sections && data.class_sections.length > 0) {
+          const fetchedStudents = data.class_sections[0]?.students || [];
+          
+          if (fetchedStudents.length === 0) {
+            setErrorMessage(`No students found for Class ${className}-${sectionName}`);
+            setStudents([]);
+            return;
+          }
+
+          setStudents(fetchedStudents);
+          
+          // Initialize marks data
+          const initialMarks: Record<number, MarkEntry> = {};
+          fetchedStudents.forEach((student: Student) => {
+            initialMarks[student.id] = {
+              student_id: student.id,
+              marks_obtained: '',
+              grade: '',
+              remarks: ''
+            };
+          });
+          setMarksData(initialMarks);
+          setErrorMessage('');
+        } else {
+          setErrorMessage(`No class found: ${className}-${sectionName}`);
+          setStudents([]);
+        }
+      },
+      onError: (error) => {
+        console.error('Error fetching students:', error);
+        setErrorMessage('Failed to fetch students. Please check your connection.');
+        setStudents([]);
+      }
+    }
+  );
+
+  const [createSubject] = useMutation(GET_OR_CREATE_SUBJECT);
+  const [createExam] = useMutation(GET_OR_CREATE_EXAM);
+  const [insertMarks, { loading: saving }] = useMutation(INSERT_MARKS, {
+    onCompleted: (data) => {
+      if (data?.insert_marks?.affected_rows > 0) {
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        setSaveStatus('error');
+        setErrorMessage('No marks were saved');
+      }
+    },
+    onError: (error) => {
+      console.error('Error saving marks:', error);
+      setSaveStatus('error');
+      setErrorMessage('Failed to save marks: ' + error.message);
+    }
+  });
 
   // Show error if teacher is not authenticated
   useEffect(() => {
@@ -104,63 +162,17 @@ const MarksEntrySystem: React.FC = () => {
       return;
     }
 
-    setSearching(true);
     setErrorMessage('');
     setStudents([]);
     setMarksData({});
 
-    try {
-      const response = await fetch("http://localhost:3000/hasura/fetch-students", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${createMockToken(teacherId)}`
-        },
-        body: JSON.stringify({
-          class_name: className.trim(),
-          section_name: sectionName.trim(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(result.message || "Failed to fetch students");
-        setSearching(false);
-        return;
+    // Execute the query
+    fetchStudents({
+      variables: {
+        className: className.trim(),
+        sectionName: sectionName.trim(),
       }
-
-      if (!result.success) {
-        setErrorMessage(result.message || "Failed to fetch students");
-        setSearching(false);
-        return;
-      }
-
-      if (result.students.length === 0) {
-        setErrorMessage(`No students found for Class ${className}-${sectionName}`);
-        setSearching(false);
-        return;
-      }
-
-      setStudents(result.students);
-      
-      // Initialize marks data
-      const initialMarks: Record<number, MarkEntry> = {};
-      result.students.forEach((student: Student) => {
-        initialMarks[student.id] = {
-          student_id: student.id,
-          marks_obtained: '',
-          grade: '',
-          remarks: ''
-        };
-      });
-      setMarksData(initialMarks);
-      setSearching(false);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      setErrorMessage('Database connection error. Is SAM running?');
-      setSearching(false);
-    }
+    });
   };
 
   const handleSaveMarks = async () => {
@@ -181,70 +193,70 @@ const MarksEntrySystem: React.FC = () => {
       return;
     }
 
-    setLoading(true);
     setSaveStatus('idle');
     setErrorMessage('');
 
     try {
-      // Prepare data for mutation
+      // Step 1: Create or get subject
+      const subjectResult = await createSubject({
+        variables: {
+          name: subjectName.trim(),
+          className: className.trim(),
+          teacherId: teacherId,
+        }
+      });
+
+      const subjectId = subjectResult.data?.insert_subjects_one?.id;
+
+      if (!subjectId) {
+        setErrorMessage('Failed to create/fetch subject');
+        setSaveStatus('error');
+        return;
+      }
+
+      // Step 2: Create or get exam
+      const examResult = await createExam({
+        variables: {
+          name: examName.trim(),
+          academicYear: academicYear.trim() || new Date().getFullYear().toString(),
+        }
+      });
+
+      const examId = examResult.data?.insert_exams_one?.id;
+
+      if (!examId) {
+        setErrorMessage('Failed to create/fetch exam');
+        setSaveStatus('error');
+        return;
+      }
+
+      // Step 3: Prepare marks data
       const marksEntries = marksToSave.map(mark => ({
         student_id: mark.student_id,
-        subject_name: subjectName.trim(),
-        exam_name: examName.trim(),
-        class_name: className.trim(),
-        section_name: sectionName.trim(),
-        academic_year: academicYear.trim(),
+        subject_id: subjectId,
+        exam_id: examId,
         teacher_id: teacherId,
         marks_obtained: parseFloat(mark.marks_obtained),
         max_marks: maxMarks,
         grade: mark.grade,
-        remarks: mark.remarks,
-        is_finalized: false
+        remarks: mark.remarks || null,
+        is_finalized: false,
+        entered_at: new Date().toISOString(),
       }));
 
-      console.log('Sending marks entries:', marksEntries);
+      console.log('Saving marks:', marksEntries);
 
-      const response = await fetch("http://localhost:3000/hasura/marks-entry", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${createMockToken(teacherId)}`
-        },
-        body: JSON.stringify({
-          action: 'save',
-          data: {
-            marks: marksEntries
-          }
-        }),
+      // Step 4: Insert marks
+      await insertMarks({
+        variables: {
+          marks: marksEntries
+        }
       });
 
-      const result = await response.json();
-      console.log('Save marks response:', result);
-
-      if (!response.ok) {
-        setErrorMessage(result.message || "Failed to save marks");
-        setSaveStatus('error');
-        setLoading(false);
-        return;
-      }
-
-      if (!result.success) {
-        setErrorMessage(result.message || "Failed to save marks");
-        setSaveStatus('error');
-        setLoading(false);
-        return;
-      }
-
-      setSaveStatus('success');
-      setLoading(false);
-      
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error saving marks:', error);
-      setErrorMessage('Database connection error. Is SAM running?');
+    } catch (error: any) {
+      console.error('Error in save process:', error);
+      setErrorMessage('Failed to save marks: ' + error.message);
       setSaveStatus('error');
-      setLoading(false);
     }
   };
 
@@ -473,15 +485,15 @@ const MarksEntrySystem: React.FC = () => {
               </div>
               <button
                 onClick={handleSaveMarks}
-                disabled={!canSave || loading}
+                disabled={!canSave || saving}
                 className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${
-                  canSave && !loading
+                  canSave && !saving
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 <Save className="w-5 h-5" />
-                {loading ? 'Saving...' : 'Save Marks'}
+                {saving ? 'Saving...' : 'Save Marks'}
               </button>
             </div>
           </div>

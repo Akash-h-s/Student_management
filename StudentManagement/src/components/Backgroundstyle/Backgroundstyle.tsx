@@ -1,5 +1,5 @@
 import React from "react";
-import background from "../assets/background1.mp4";
+import background from "../../assets/background1.mp4";
 
 function Backgroundstyle() {
   return (
