@@ -2,7 +2,6 @@ import React from "react";
 import type{ IconType } from "react-icons";
 import { FaGraduationCap, FaChalkboardTeacher, FaUserFriends, FaChartLine } from "react-icons/fa";
 
-// Type Definitions
 interface AboutIntro {
   heading: string;
   paragraphs: string[];
@@ -48,7 +47,7 @@ interface ImageTextSectionProps {
   imagePosition: "left" | "right";
 }
 
-// Constants
+
 const ABOUT_INTRO: AboutIntro = {
   heading: "About Us",
   paragraphs: [
@@ -111,7 +110,7 @@ const INFO_SECTIONS: InfoSection[] = [
   },
 ];
 
-// Reusable Components
+
 const FeatureCard: React.FC<FeatureCardProps> = ({ Icon, title, text }) => (
   <div className="bg-white flex gap-5 p-6 items-start shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
     <div className="bg-blue-100 text-blue-600 text-2xl w-14 h-14 rounded-xl flex items-center justify-center mt-2">
@@ -176,7 +175,7 @@ const ImageTextSection: React.FC<ImageTextSectionProps> = ({
   );
 };
 
-// Main Component
+
 const AboutUs=() => {
   return (
     <section className="bg-gray-100 py-20 px-2">

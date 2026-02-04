@@ -512,7 +512,7 @@ interface SuccessMessageProps {
   onReset: () => void;
 }
 
-const SuccessMessage = React.memo(({ message, workflowStatus, onReset }: SuccessMessageProps) => (
+const SuccessMessage = React.memo(({ message, onReset }: SuccessMessageProps) => (
   <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
     <div className="flex items-start gap-3">
       <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />

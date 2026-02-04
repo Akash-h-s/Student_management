@@ -7,7 +7,7 @@ import { Building2, Mail, Lock, Phone, AlertCircle} from 'lucide-react';
 import type{ LucideIcon} from 'lucide-react'
 import { CHECK_ADMIN_EMAIL, INSERT_ADMIN } from '../../graphql/signup';
 
-// Type Definitions
+
 interface FormData {
   schoolName: string;
   email: string;

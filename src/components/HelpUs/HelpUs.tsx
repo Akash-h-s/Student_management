@@ -1,6 +1,4 @@
-import React from "react";
 
-// Type Definitions
 interface Guide {
   id: number;
   title: string;

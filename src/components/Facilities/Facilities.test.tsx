@@ -1,49 +1,66 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import Facilities from "./Facilities";
-import "@testing-library/jest-dom";
 
-describe("Facilities Component - Advanced", () => {
-  it("renders with custom header content via props", () => {
-    const customHeader = {
-      title: "Campus Perks",
-      subtitle: "Check out our",
-      highlightText: "exclusive",
-      subtitleEnd: "offers",
-    };
+describe("Facilities Component", () => {
+  it("renders the section header with correct title and subtitle", () => {
+    render(<Facilities />);
 
-    render(<Facilities headerContent={customHeader} />);
-    
-    expect(screen.getByText("Campus Perks")).toBeInTheDocument();
-    expect(screen.getByText(/exclusive/i)).toHaveClass("text-orange-500");
+    expect(screen.getByText("Facilities for Students")).toBeInTheDocument();
+
+   
+    expect(screen.getByText(/Supporting education through/i)).toBeInTheDocument();
+    expect(screen.getByText("benefits")).toHaveClass("text-orange-500");
+    expect(screen.getByText(/and resources/i)).toBeInTheDocument();
   });
 
-  it("successfully passes custom facilities list", () => {
-    const mockFacilities = [
-      { 
-        id: 99, 
-        Icon: () => <svg data-testid="mock-icon" />, 
-        title: "Swimming Pool", 
-        desc: "Olympic size pool", 
-        bgColor: "bg-blue-50", 
-        iconColor: "text-blue-500" 
-      }
+  it("renders all default facility cards", () => {
+    render(<Facilities />);
+
+    const facilityTitles = [
+      "Smart Classrooms",
+      "Advanced Computer Labs",
+      "Robotics & STEM Programs",
+      "Spoken English & Personality Development",
+      "Professional Sports Coaching",
+      "Air-Conditioned Classrooms",
+      "Digital Attendance & Parent App",
+      "CCTV Security",
+      "School Transport with GPS",
+      "Library & Reading Programs",
     ];
 
-    render(<Facilities facilities={mockFacilities} />);
-    
-    expect(screen.getByText("Swimming Pool")).toBeInTheDocument();
-    expect(screen.queryByText("Smart Classrooms")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+    facilityTitles.forEach((title) => {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    });
   });
 
-  it("verifies the Popup overlay structure when manually triggered", () => {
-    // This tests the Popup component in isolation or via Facilities 
-    // if you wire up the onClick.
+  it("renders correct descriptions for facility cards", () => {
+    render(<Facilities />);
+
+   
+    expect(
+      screen.getByText(/Digital classrooms with projectors and interactive boards/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Safe school buses with live GPS tracking/i)
+    ).toBeInTheDocument();
+  });
+
+  it("applies correct styling classes to icons containers", () => {
+    const { container } = render(<Facilities />);
+
+    
+    const firstIconContainer = container.querySelector(".bg-blue-100");
+    expect(firstIconContainer).toBeInTheDocument();
+    expect(firstIconContainer).toHaveClass("w-16", "h-16", "rounded-xl");
+  });
+
+ 
+
+  it("does not render the popup by default", () => {
     render(<Facilities />);
     
-    // Check for the bg-slate-800 container class to ensure theme consistency
-    const mainContainer = screen.getByText("Facilities for Students").closest('div');
-    expect(mainContainer).toHaveClass("bg-slate-800");
+    expect(screen.queryByText("Close")).not.toBeInTheDocument();
   });
 });

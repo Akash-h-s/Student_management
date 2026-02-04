@@ -1,6 +1,5 @@
-import React from "react";
 
-// Type Definitions
+
 interface ImageColumnProps {
   images: string[];
   animationClass: string;

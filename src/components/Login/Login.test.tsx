@@ -1,86 +1,91 @@
-import { vi} from 'vitest'; // Ensure all are imported
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from '../../context/AuthContext';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { MockedProvider } from '@apollo/client/testing';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Login from './Login';
+import { GET_STUDENT_BY_ADMISSION_NUMBER, GET_ADMIN_BY_EMAIL } from '../../graphql/login';
 
-const mockNavigate = vi.fn();
+// Mocks
+const mockLogin = vi.fn();
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({ login: mockLogin }),
+}));
 
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
-
-// Create a mock function for fetch
-const mockFetch = vi.fn();
-// Use stubGlobal to replace the global fetch properly
-vi.stubGlobal('fetch', mockFetch);
-
-const renderLogin = () => {
-  return render(
-    <BrowserRouter>
-      <AuthProvider>
-        <Login />
-      </AuthProvider>
-    </BrowserRouter>
-  );
-};
+vi.mock('bcryptjs', () => ({
+  default: { compare: vi.fn().mockResolvedValue(true) },
+}));
 
 describe('Login Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockClear();
   });
 
-  it('successfully logs in student and navigates to dashboard', async () => {
-    const user = userEvent.setup();
-    
-    // Type-safe mocking without 'any'
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        success: true,
-        user: { id: '1', role: 'student', name: 'John Doe' },
-        token: 'fake-jwt-token',
-      }),
-    });
-    
-    renderLogin();
-    
-    const inputs = screen.getAllByRole('textbox');
-    await user.type(inputs[0], 'STU001');
-    await user.type(inputs[1], 'John Doe');
-    await user.click(screen.getByRole('button', { name: /verify & enter/i }));
-    
+  it('handles successful student login and navigation', async () => {
+    const studentMock = {
+      request: {
+        query: GET_STUDENT_BY_ADMISSION_NUMBER,
+        variables: { admissionNumber: 'STU123', name: 'John Doe' },
+      },
+      result: {
+        data: { students: [{ id: 101, name: 'John Doe', email: 'john@school.com' }] }
+      },
+    };
+
+    const { container } = render(
+      <MockedProvider mocks={[studentMock]} addTypename={false}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </MockedProvider>
+    );
+
+    // 1. Find text inputs by their order in the DOM (Identifier, then Name)
+    const textInputs = container.querySelectorAll('input[type="text"]');
+    fireEvent.change(textInputs[0], { target: { value: 'STU123' } });
+    fireEvent.change(textInputs[1], { target: { value: 'John Doe' } });
+
+    // 2. Click submit
+    fireEvent.click(screen.getByRole('button'));
+
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/student/dashboard');
+      expect(mockLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 101, role: 'student' }),
+        expect.any(String)
+      );
     });
   });
 
-  it('displays error message on failed login', async () => {
-    const user = userEvent.setup();
-    
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({
-        success: false,
-        message: 'Invalid credentials',
-      }),
-    });
-    
-    renderLogin();
-    
-    const inputs = screen.getAllByRole('textbox');
-    await user.type(inputs[0], 'STU001');
-    await user.type(inputs[1], 'John Doe');
-    await user.click(screen.getByRole('button', { name: /verify & enter/i }));
-    
-    await waitFor(() => {
-      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
-    });
+  it('shows error if admin is not found', async () => {
+    const adminMock = {
+      request: {
+        query: GET_ADMIN_BY_EMAIL,
+        variables: { email: 'admin@school.com' },
+      },
+      result: { data: { admins: [] } },
+    };
+
+    const { container } = render(
+      <MockedProvider mocks={[adminMock]} addTypename={false}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </MockedProvider>
+    );
+
+    // 1. Switch Role to Admin
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'admin' } });
+
+    // 2. Find Email input (type="email") and Password input (type="password")
+    const emailInput = container.querySelector('input[type="email"]');
+    const passwordInput = container.querySelector('input[type="password"]');
+
+    if (emailInput) fireEvent.change(emailInput, { target: { value: 'admin@school.com' } });
+    if (passwordInput) fireEvent.change(passwordInput, { target: { value: 'password123' } });
+
+    // 3. Submit
+    fireEvent.click(screen.getByRole('button'));
+
+    // 4. Check for error message text
+    expect(await screen.findByText(/admin not found/i)).toBeInTheDocument();
   });
 });
