@@ -10,7 +10,7 @@ import {
   GET_STUDENT_BY_ADMISSION_NUMBER,
 } from '../../graphql/login';
 
-// Type Definitions
+
 type Role = 'student' | 'parent' | 'teacher' | 'admin';
 
 interface UserData {
@@ -22,7 +22,7 @@ interface UserData {
 }
 
 interface User {
-  id: number; // Changed from string
+  id: number;
   name: string;
   email: string;
   role: Role;

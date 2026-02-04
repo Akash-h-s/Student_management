@@ -1,7 +1,6 @@
-// src/components/MarksEntry/MarksEntrySystem.tsx
-import React, { useState, useEffect } from 'react';
-import { Save, Search, AlertCircle, CheckCircle } from 'lucide-react';
-import { useLazyQuery, useMutation } from '@apollo/client';
+import React, { useState,useCallback} from 'react';
+import { Save, Search, AlertCircle} from 'lucide-react';
+import { useLazyQuery, useMutation, ApolloError } from '@apollo/client';
 import { useAuth } from '../../context/AuthContext';
 import {
   GET_STUDENTS_BY_CLASS_SECTION,
@@ -10,7 +9,9 @@ import {
   GET_OR_CREATE_EXAM,
 } from '../../graphql/marks';
 
-// Types
+
+type SaveStatus = 'idle' | 'success' | 'error';
+
 interface Student {
   id: number;
   admission_no: string;
@@ -24,493 +25,260 @@ interface MarkEntry {
   remarks: string;
 }
 
-const MarksEntrySystem: React.FC = () => {
-  // ✅ Get teacher ID from Auth Context
-  const { user: currentUser } = useAuth();
-  const teacherId = currentUser?.id ? parseInt(currentUser.id) : null;
-  const teacherName = currentUser?.name;
-  const maxMarks = 100;
+interface GradeConfig {
+  threshold: number;
+  grade: string;
+  colorClass: string;
+}
 
-  // Manual input fields
+
+interface FetchStudentsData {
+  class_sections: {
+    students: Student[];
+  }[];
+}
+
+interface InsertMarksData {
+  insert_marks: {
+    affected_rows: number;
+  };
+}
+
+interface SubjectMutationData {
+  insert_subjects_one: { id: number };
+}
+
+interface ExamMutationData {
+  insert_exams_one: { id: number };
+}
+
+
+const MAX_MARKS = 100;
+const GRADE_THRESHOLDS: GradeConfig[] = [
+  { threshold: 90, grade: 'A+', colorClass: 'bg-green-100 text-green-800' },
+  { threshold: 80, grade: 'A', colorClass: 'bg-green-100 text-green-800' },
+  { threshold: 70, grade: 'B+', colorClass: 'bg-blue-100 text-blue-800' },
+  { threshold: 60, grade: 'B', colorClass: 'bg-blue-100 text-blue-800' },
+  { threshold: 50, grade: 'C', colorClass: 'bg-yellow-100 text-yellow-800' },
+  { threshold: 40, grade: 'D', colorClass: 'bg-orange-100 text-orange-800' },
+  { threshold: 0, grade: 'F', colorClass: 'bg-red-100 text-red-800' },
+] as const;
+
+const ERROR_MESSAGES = {
+  NOT_AUTHENTICATED: 'Teacher not authenticated. Please log in.',
+  LOGIN_REQUIRED: 'Teacher ID not found. Please log in again.',
+  CLASS_SECTION_REQUIRED: 'Please enter both class and section',
+  ALL_FIELDS_REQUIRED: 'Please fill all required fields',
+  NO_MARKS_ENTERED: 'Please enter marks for at least one student',
+  SUBJECT_FAILED: 'Failed to create/fetch subject',
+  EXAM_FAILED: 'Failed to create/fetch exam',
+  SAVE_FAILED: 'Failed to save marks: ',
+  FETCH_FAILED: 'Failed to fetch students. Please check your connection.',
+} as const;
+
+const SUCCESS_MESSAGES = { MARKS_SAVED: 'Marks saved successfully!' } as const;
+const PLACEHOLDERS = {
+  CLASS: 'e.g., 10',
+  SECTION: 'e.g., A',
+  SUBJECT: 'e.g., Mathematics',
+  EXAM: 'e.g., Mid Term Exam',
+  ACADEMIC_YEAR: 'e.g., 2024-25',
+  MARKS: '0',
+  REMARKS: 'Optional',
+} as const;
+
+const TABLE_HEADERS = ['S.No', 'Admission No', 'Student Name', `Marks (/${MAX_MARKS})`, 'Grade', 'Remarks'] as const;
+const BUTTON_STYLES = { primary: 'bg-blue-600 text-white hover:bg-blue-700', disabled: 'bg-gray-300 text-gray-500 cursor-not-allowed' } as const;
+
+
+const parseTeacherId = (id: string | undefined): number | null => (id ? parseInt(id, 10) : null);
+const getCurrentYear = (): string => new Date().getFullYear().toString();
+const calculateGrade = (marks: number): string => GRADE_THRESHOLDS.find(({ threshold }) => marks >= threshold)?.grade || 'F';
+const getGradeColorClass = (grade: string): string => GRADE_THRESHOLDS.find((g) => g.grade === grade)?.colorClass || 'bg-gray-100 text-gray-800';
+
+const initializeMarksData = (students: Student[]): Record<number, MarkEntry> => {
+  const initialMarks: Record<number, MarkEntry> = {};
+  students.forEach((student) => {
+    initialMarks[student.id] = { student_id: student.id, marks_obtained: '', grade: '', remarks: '' };
+  });
+  return initialMarks;
+};
+
+
+const AlertBox = React.memo(({ type, icon, children }: { type: 'info' | 'success' | 'error' | 'warning', icon?: React.ReactNode, children: React.ReactNode }) => {
+  const colors = { info: 'bg-blue-50 border-blue-200 text-blue-800', success: 'bg-green-50 border-green-200 text-green-800', error: 'bg-red-50 border-red-200 text-red-800', warning: 'bg-yellow-50 border-yellow-200 text-yellow-800' };
+  return <div className={`mb-4 p-3 border rounded-md flex items-center gap-2 ${colors[type]}`}>{icon} <span className="text-sm">{children}</span></div>;
+});
+
+const FormInput = React.memo(({ label, value, onChange, placeholder, disabled, required }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, disabled?: boolean, required?: boolean }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
+    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+  </div>
+));
+
+const StudentRow = React.memo(({ student, index, markData, maxMarks, onMarksChange, onRemarksChange }: { student: Student, index: number, markData: MarkEntry, maxMarks: number, onMarksChange: (id: number, m: string) => void, onRemarksChange: (id: number, r: string) => void }) => (
+  <tr className="hover:bg-gray-50">
+    <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
+    <td className="px-4 py-3 text-sm text-gray-700">{student.admission_no}</td>
+    <td className="px-4 py-3 text-sm font-medium text-gray-900">{student.name}</td>
+    <td className="px-4 py-3">
+      <input type="number" min="0" max={maxMarks} step="0.5" value={markData.marks_obtained} onChange={(e) => onMarksChange(student.id, e.target.value)} className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </td>
+    <td className="px-4 py-3"><span className={`inline-block px-3 py-1 text-sm font-semibold rounded ${getGradeColorClass(markData.grade)}`}>{markData.grade || '-'}</span></td>
+    <td className="px-4 py-3"><input type="text" value={markData.remarks} onChange={(e) => onRemarksChange(student.id, e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
+  </tr>
+));
+
+
+const MarksEntrySystem: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  
+  
+  const teacherId = parseTeacherId(currentUser?.id?.toString());
+  const teacherName = currentUser?.name;
+
   const [className, setClassName] = useState('');
   const [sectionName, setSectionName] = useState('');
   const [subjectName, setSubjectName] = useState('');
   const [examName, setExamName] = useState('');
   const [academicYear, setAcademicYear] = useState('');
-
   const [students, setStudents] = useState<Student[]>([]);
   const [marksData, setMarksData] = useState<Record<number, MarkEntry>>({});
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Apollo Client Queries and Mutations
-  const [fetchStudents, { loading: searching }] = useLazyQuery(
-    GET_STUDENTS_BY_CLASS_SECTION,
-    {
-      onCompleted: (data) => {
-        if (data?.class_sections && data.class_sections.length > 0) {
-          const fetchedStudents = data.class_sections[0]?.students || [];
-          
-          if (fetchedStudents.length === 0) {
-            setErrorMessage(`No students found for Class ${className}-${sectionName}`);
-            setStudents([]);
-            return;
-          }
-
-          setStudents(fetchedStudents);
-          
-          // Initialize marks data
-          const initialMarks: Record<number, MarkEntry> = {};
-          fetchedStudents.forEach((student: Student) => {
-            initialMarks[student.id] = {
-              student_id: student.id,
-              marks_obtained: '',
-              grade: '',
-              remarks: ''
-            };
-          });
-          setMarksData(initialMarks);
-          setErrorMessage('');
-        } else {
-          setErrorMessage(`No class found: ${className}-${sectionName}`);
+ 
+  const [fetchStudents, { loading: searching }] = useLazyQuery<FetchStudentsData>(GET_STUDENTS_BY_CLASS_SECTION, {
+    onCompleted: useCallback((data: FetchStudentsData) => {
+      if (data?.class_sections?.length > 0) {
+        const fetchedStudents = data.class_sections[0]?.students || [];
+        if (fetchedStudents.length === 0) {
+          setErrorMessage(`No students found for Class ${className}-${sectionName}`);
           setStudents([]);
+          return;
         }
-      },
-      onError: (error) => {
-        console.error('Error fetching students:', error);
-        setErrorMessage('Failed to fetch students. Please check your connection.');
+        setStudents(fetchedStudents);
+        setMarksData(initializeMarksData(fetchedStudents));
+        setErrorMessage('');
+      } else {
+        setErrorMessage(`No class found: ${className}-${sectionName}`);
         setStudents([]);
       }
-    }
-  );
+    }, [className, sectionName]),
+    onError: useCallback((error: ApolloError) => {
+      setErrorMessage(ERROR_MESSAGES.FETCH_FAILED);
+      console.error(error);
+    }, []),
+  });
 
-  const [createSubject] = useMutation(GET_OR_CREATE_SUBJECT);
-  const [createExam] = useMutation(GET_OR_CREATE_EXAM);
-  const [insertMarks, { loading: saving }] = useMutation(INSERT_MARKS, {
-    onCompleted: (data) => {
+  const [createSubject] = useMutation<SubjectMutationData>(GET_OR_CREATE_SUBJECT);
+  const [createExam] = useMutation<ExamMutationData>(GET_OR_CREATE_EXAM);
+  const [insertMarks, { loading: saving }] = useMutation<InsertMarksData>(INSERT_MARKS, {
+    onCompleted: useCallback((data: InsertMarksData) => {
       if (data?.insert_marks?.affected_rows > 0) {
         setSaveStatus('success');
         setTimeout(() => setSaveStatus('idle'), 3000);
-      } else {
-        setSaveStatus('error');
-        setErrorMessage('No marks were saved');
       }
-    },
-    onError: (error) => {
-      console.error('Error saving marks:', error);
+    }, []),
+    onError: useCallback((error: ApolloError) => {
       setSaveStatus('error');
-      setErrorMessage('Failed to save marks: ' + error.message);
-    }
+      setErrorMessage(ERROR_MESSAGES.SAVE_FAILED + error.message);
+    }, []),
   });
 
-  // Show error if teacher is not authenticated
-  useEffect(() => {
-    if (!teacherId) {
-      setErrorMessage('Teacher not authenticated. Please log in.');
-    } else {
-      setErrorMessage('');
-    }
-  }, [teacherId]);
-
-  const calculateGrade = (marks: number): string => {
-    if (marks >= 90) return 'A+';
-    if (marks >= 80) return 'A';
-    if (marks >= 70) return 'B+';
-    if (marks >= 60) return 'B';
-    if (marks >= 50) return 'C';
-    if (marks >= 40) return 'D';
-    return 'F';
-  };
-
-  const handleMarksChange = (studentId: number, marks: string) => {
+  const handleMarksChange = useCallback((studentId: number, marks: string) => {
     const numMarks = parseFloat(marks);
     const grade = marks && !isNaN(numMarks) ? calculateGrade(numMarks) : '';
-    
-    setMarksData(prev => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        student_id: studentId,
-        marks_obtained: marks,
-        grade: grade,
-        remarks: prev[studentId]?.remarks || ''
-      }
-    }));
-  };
+    setMarksData((prev) => ({ ...prev, [studentId]: { ...prev[studentId], marks_obtained: marks, grade } }));
+  }, []);
 
-  const handleRemarksChange = (studentId: number, remarks: string) => {
-    setMarksData(prev => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        student_id: studentId,
-        marks_obtained: prev[studentId]?.marks_obtained || '',
-        grade: prev[studentId]?.grade || '',
-        remarks: remarks
-      }
-    }));
-  };
+  const handleRemarksChange = useCallback((studentId: number, remarks: string) => {
+    setMarksData((prev) => ({ ...prev, [studentId]: { ...prev[studentId], remarks } }));
+  }, []);
 
-  const handleFetchStudents = async () => {
-    if (!teacherId) {
-      setErrorMessage('Teacher ID not found. Please log in again.');
-      return;
-    }
-
-    if (!className.trim() || !sectionName.trim()) {
-      setErrorMessage('Please enter both class and section');
-      return;
-    }
-
-    setErrorMessage('');
-    setStudents([]);
-    setMarksData({});
-
-    // Execute the query
-    fetchStudents({
-      variables: {
-        className: className.trim(),
-        sectionName: sectionName.trim(),
-      }
-    });
+  const handleFetchStudents = () => {
+    if (!teacherId || !className || !sectionName) return setErrorMessage(ERROR_MESSAGES.CLASS_SECTION_REQUIRED);
+    fetchStudents({ variables: { className: className.trim(), sectionName: sectionName.trim() } });
   };
 
   const handleSaveMarks = async () => {
-    if (!teacherId) {
-      setErrorMessage('Teacher ID not found. Please log in again.');
-      return;
-    }
-
-    if (!className.trim() || !sectionName.trim() || !subjectName.trim() || !examName.trim()) {
-      setErrorMessage('Please fill all required fields');
-      return;
-    }
-
-    const marksToSave = Object.values(marksData).filter(mark => mark.marks_obtained !== '');
-    
-    if (marksToSave.length === 0) {
-      setErrorMessage('Please enter marks for at least one student');
-      return;
-    }
-
-    setSaveStatus('idle');
-    setErrorMessage('');
+    if (!teacherId || !className || !sectionName || !subjectName || !examName) return setErrorMessage(ERROR_MESSAGES.ALL_FIELDS_REQUIRED);
+    const marksToSave = Object.values(marksData).filter((m) => m.marks_obtained !== '');
+    if (marksToSave.length === 0) return setErrorMessage(ERROR_MESSAGES.NO_MARKS_ENTERED);
 
     try {
-      // Step 1: Create or get subject
-      const subjectResult = await createSubject({
-        variables: {
-          name: subjectName.trim(),
-          className: className.trim(),
-          teacherId: teacherId,
-        }
-      });
+      const subRes = await createSubject({ variables: { name: subjectName.trim(), className: className.trim(), teacherId } });
+      const exRes = await createExam({ variables: { name: examName.trim(), academicYear: academicYear.trim() || getCurrentYear() } });
+      
+      const subjectId = subRes.data?.insert_subjects_one.id;
+      const examId = exRes.data?.insert_exams_one.id;
 
-      const subjectId = subjectResult.data?.insert_subjects_one?.id;
-
-      if (!subjectId) {
-        setErrorMessage('Failed to create/fetch subject');
-        setSaveStatus('error');
-        return;
+      if (subjectId && examId) {
+        const entries = marksToSave.map((m) => ({
+          student_id: m.student_id,
+          subject_id: subjectId,
+          exam_id: examId,
+          teacher_id: teacherId,
+          marks_obtained: parseFloat(m.marks_obtained),
+          max_marks: MAX_MARKS,
+          grade: m.grade,
+          remarks: m.remarks || null,
+          entered_at: new Date().toISOString(),
+        }));
+        await insertMarks({ variables: { marks: entries } });
       }
-
-      // Step 2: Create or get exam
-      const examResult = await createExam({
-        variables: {
-          name: examName.trim(),
-          academicYear: academicYear.trim() || new Date().getFullYear().toString(),
-        }
-      });
-
-      const examId = examResult.data?.insert_exams_one?.id;
-
-      if (!examId) {
-        setErrorMessage('Failed to create/fetch exam');
-        setSaveStatus('error');
-        return;
-      }
-
-      // Step 3: Prepare marks data
-      const marksEntries = marksToSave.map(mark => ({
-        student_id: mark.student_id,
-        subject_id: subjectId,
-        exam_id: examId,
-        teacher_id: teacherId,
-        marks_obtained: parseFloat(mark.marks_obtained),
-        max_marks: maxMarks,
-        grade: mark.grade,
-        remarks: mark.remarks || null,
-        is_finalized: false,
-        entered_at: new Date().toISOString(),
-      }));
-
-      console.log('Saving marks:', marksEntries);
-
-      // Step 4: Insert marks
-      await insertMarks({
-        variables: {
-          marks: marksEntries
-        }
-      });
-
-    } catch (error: any) {
-      console.error('Error in save process:', error);
-      setErrorMessage('Failed to save marks: ' + error.message);
+    } catch (err) {
+      const error = err as Error;
+      setErrorMessage(ERROR_MESSAGES.SAVE_FAILED + error.message);
       setSaveStatus('error');
     }
   };
 
-  const canSearch = className.trim() !== '' && sectionName.trim() !== '' && !!teacherId;
-  const canSave = students.length > 0 && 
-    className.trim() !== '' && 
-    sectionName.trim() !== '' && 
-    subjectName.trim() !== '' && 
-    examName.trim() !== '' &&
-    !!teacherId &&
-    Object.values(marksData).some(mark => mark.marks_obtained !== '');
+  const canSave = students.length > 0 && !!teacherId && Object.values(marksData).some(m => m.marks_obtained !== '');
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-6">Marks Entry System</h1>
-          
-          {/* Teacher Info */}
           {teacherId ? (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">Logged in as:</span> {teacherName} (Teacher ID: {teacherId})
-              </p>
-            </div>
+            <AlertBox type="info"><span className="font-semibold">Logged in:</span> {teacherName}</AlertBox>
           ) : (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <p className="text-sm text-red-800">
-                <span className="font-semibold">Not authenticated.</span> Please log in to continue.
-              </p>
-            </div>
+            <AlertBox type="error" icon={<AlertCircle className="w-5 h-5" />}>{ERROR_MESSAGES.NOT_AUTHENTICATED}</AlertBox>
           )}
-          
-          {/* Manual Input Fields */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Class <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={className}
-                onChange={(e) => setClassName(e.target.value)}
-                placeholder="e.g., 10"
-                disabled={!teacherId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Section <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={sectionName}
-                onChange={(e) => setSectionName(e.target.value)}
-                placeholder="e.g., A"
-                disabled={!teacherId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Subject <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                placeholder="e.g., Mathematics"
-                disabled={!teacherId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Exam Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={examName}
-                onChange={(e) => setExamName(e.target.value)}
-                placeholder="e.g., Mid Term Exam"
-                disabled={!teacherId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Academic Year
-              </label>
-              <input
-                type="text"
-                value={academicYear}
-                onChange={(e) => setAcademicYear(e.target.value)}
-                placeholder="e.g., 2024-25"
-                disabled={!teacherId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
+            <FormInput label="Class" value={className} onChange={setClassName} placeholder={PLACEHOLDERS.CLASS} required />
+            <FormInput label="Section" value={sectionName} onChange={setSectionName} placeholder={PLACEHOLDERS.SECTION} required />
+            <FormInput label="Subject" value={subjectName} onChange={setSubjectName} placeholder={PLACEHOLDERS.SUBJECT} required />
+            <FormInput label="Exam Name" value={examName} onChange={setExamName} placeholder={PLACEHOLDERS.EXAM} required />
+            <FormInput label="Academic Year" value={academicYear} onChange={setAcademicYear} placeholder={PLACEHOLDERS.ACADEMIC_YEAR} />
             <div className="flex items-end">
-              <button
-                onClick={handleFetchStudents}
-                disabled={!canSearch || searching}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                  canSearch && !searching
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <Search className="w-5 h-5" />
-                {searching ? 'Fetching...' : 'Fetch Students'}
+              <button onClick={handleFetchStudents} disabled={searching} className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium ${searching ? BUTTON_STYLES.disabled : BUTTON_STYLES.primary}`}>
+                <Search className="w-5 h-5" /> {searching ? 'Fetching...' : 'Fetch Students'}
               </button>
             </div>
           </div>
-
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-800">
-              <AlertCircle className="w-5 h-5" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Save Status */}
-          {saveStatus === 'success' && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-center gap-2 text-green-800">
-              <CheckCircle className="w-5 h-5" />
-              <span>Marks saved successfully!</span>
-            </div>
-          )}
-
-          {saveStatus === 'error' && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-800">
-              <AlertCircle className="w-5 h-5" />
-              <span>Error saving marks. Please try again.</span>
-            </div>
-          )}
-
-          {/* Class Info Display */}
-          {students.length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">Showing students for:</span> Class {className}-{sectionName} | 
-                Subject: {subjectName || 'Not specified'} | 
-                Exam: {examName || 'Not specified'} | 
-                Students: {students.length}
-              </p>
-            </div>
-          )}
+          {errorMessage && <AlertBox type="error">{errorMessage}</AlertBox>}
+          {saveStatus === 'success' && <AlertBox type="success">{SUCCESS_MESSAGES.MARKS_SAVED}</AlertBox>}
         </div>
 
-        {/* Students Marks Table */}
         {students.length > 0 && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-100 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">S.No</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Admission No</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Student Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Marks (/{maxMarks})</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Grade</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {students.map((student, index) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{student.admission_no}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{student.name}</td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max={maxMarks}
-                          step="0.5"
-                          value={marksData[student.id]?.marks_obtained || ''}
-                          onChange={(e) => handleMarksChange(student.id, e.target.value)}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-3 py-1 text-sm font-semibold rounded ${
-                          marksData[student.id]?.grade === 'A+' || marksData[student.id]?.grade === 'A' 
-                            ? 'bg-green-100 text-green-800'
-                            : marksData[student.id]?.grade === 'B+' || marksData[student.id]?.grade === 'B'
-                            ? 'bg-blue-100 text-blue-800'
-                            : marksData[student.id]?.grade === 'C'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : marksData[student.id]?.grade === 'F'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {marksData[student.id]?.grade || '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          value={marksData[student.id]?.remarks || ''}
-                          onChange={(e) => handleRemarksChange(student.id, e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Optional"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Save Button */}
-            <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-              <div className="text-sm text-gray-600">
-                {Object.values(marksData).filter(m => m.marks_obtained !== '').length} of {students.length} students have marks entered
-              </div>
-              <button
-                onClick={handleSaveMarks}
-                disabled={!canSave || saving}
-                className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${
-                  canSave && !saving
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <Save className="w-5 h-5" />
-                {saving ? 'Saving...' : 'Save Marks'}
+            <table className="w-full">
+              <thead className="bg-gray-100 border-b">
+                <tr>{TABLE_HEADERS.map(h => <th key={h} className="px-4 py-3 text-left text-sm font-semibold text-gray-700">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {students.map((s, i) => <StudentRow key={s.id} student={s} index={i} markData={marksData[s.id]} maxMarks={MAX_MARKS} onMarksChange={handleMarksChange} onRemarksChange={handleRemarksChange} />)}
+              </tbody>
+            </table>
+            <div className="p-4 bg-gray-50 border-t flex justify-end">
+              <button onClick={handleSaveMarks} disabled={!canSave || saving} className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium ${canSave && !saving ? BUTTON_STYLES.primary : BUTTON_STYLES.disabled}`}>
+                <Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Save Marks'}
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {students.length === 0 && !searching && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-gray-400 mb-4">
-              <Search className="w-16 h-16 mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Loaded</h3>
-            <p className="text-gray-500">
-              {teacherId 
-                ? 'Enter class and section details above and click "Fetch Students" to begin'
-                : 'Please log in to load students'}
-            </p>
           </div>
         )}
       </div>

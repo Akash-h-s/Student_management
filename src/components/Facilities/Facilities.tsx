@@ -13,7 +13,6 @@ import {
   FaBook 
 } from "react-icons/fa";
 
-// Type Definitions
 interface HeaderContent {
   title: string;
   subtitle: string;
@@ -56,7 +55,6 @@ interface FacilitiesProps {
   headerContent?: HeaderContent;
 }
 
-// Constants
 const HEADER_CONTENT: HeaderContent = {
   title: "Facilities for Students",
   subtitle: "Supporting education through",

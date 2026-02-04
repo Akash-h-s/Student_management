@@ -18,7 +18,7 @@ export default function AdminDashboard() {
       title: 'Upload Teacher Data',
       description: 'Upload teacher lists via Excel or PDF',
       icon: Users,
-      link: '/admin/upload', // Note: Both point to same path currently
+      link: '/admin/upload', 
       color: 'bg-green-500',
     },
   ];

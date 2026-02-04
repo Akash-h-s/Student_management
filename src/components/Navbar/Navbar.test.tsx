@@ -1,99 +1,116 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from './Navbar';
-import { vi, describe, it, expect } from 'vitest';
 
-// Mock the Auth Context
+// 1. Mock the Auth Context
 vi.mock('../../context/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
-const renderNavbar = () => {
-  return render(
-    <BrowserRouter>
-      <Navbar />
-    </BrowserRouter>
-  );
-};
-
 describe('Navbar Component', () => {
-  
-  it('1. should show public links when user is not authenticated', () => {
-    (useAuth as any).mockReturnValue({ user: null, logout: vi.fn() });
-    renderNavbar();
+  const mockLogout = vi.fn();
 
-    expect(screen.getByText(/Home/i)).toBeDefined();
-    expect(screen.getByText(/Login/i)).toBeDefined();
-    expect(screen.getByText(/Signup/i)).toBeDefined();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('2. should show Admin specific links when logged in as admin', () => {
-    (useAuth as any).mockReturnValue({ 
-      user: { name: 'Admin', role: 'admin' }, 
-      logout: vi.fn() 
+  // Helper function to render with Router
+  const renderNavbar = () => {
+    return render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    );
+  };
+
+  it('renders public links when no user is logged in', () => {
+    (useAuth as any).mockReturnValue({ user: null, logout: mockLogout });
+    renderNavbar();
+
+    expect(screen.getByText('EduCloud')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.getByText('Signup')).toBeInTheDocument();
+  });
+
+  it('renders Admin specific links when an admin is logged in', () => {
+    (useAuth as any).mockReturnValue({
+      user: { name: 'Admin User', role: 'admin', email: 'admin@test.com' },
+      logout: mockLogout,
     });
     renderNavbar();
 
-    expect(screen.getByText(/Upload Data/i)).toBeDefined();
-    expect(screen.getAllByText(/Dashboard/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Upload Data')).toBeInTheDocument();
+    expect(screen.queryByText('Signup')).not.toBeInTheDocument();
   });
 
-  it('3. should show Teacher specific links when logged in as teacher', () => {
-    (useAuth as any).mockReturnValue({ 
-      user: { name: 'Teacher', role: 'teacher' }, 
-      logout: vi.fn() 
+  it('renders Teacher specific links when a teacher is logged in', () => {
+    (useAuth as any).mockReturnValue({
+      user: { name: 'Teacher Jo', role: 'teacher', email: 'jo@test.com' },
+      logout: mockLogout,
     });
     renderNavbar();
 
-    expect(screen.getByText(/Marks Entry/i)).toBeDefined();
-    expect(screen.getAllByText(/Messages/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Marks Entry')).toBeInTheDocument();
+    expect(screen.getByText('Messages')).toBeInTheDocument();
   });
 
-  it('4. should show profile dropdown content on click', () => {
-    (useAuth as any).mockReturnValue({ 
-      user: { name: 'John Doe', role: 'student', email: 'john@test.com' }, 
-      logout: vi.fn() 
+  it('toggles the user dropdown menu when clicked', () => {
+    (useAuth as any).mockReturnValue({
+      user: { name: 'Jane Doe', role: 'parent', email: 'jane@test.com' },
+      logout: mockLogout,
     });
     renderNavbar();
 
-    const profileToggle = screen.getByText('John Doe');
-    fireEvent.click(profileToggle);
-
-    // Verify role is displayed (with capitalization logic from component)
-    expect(screen.getByText('john@test.com')).toBeDefined();
-    expect(screen.getByText('Student')).toBeDefined();
-  });
-
-  it('5. should toggle mobile menu on hamburger click', () => {
-    (useAuth as any).mockReturnValue({ user: null, logout: vi.fn() });
-    renderNavbar();
-
-    // The mobile menu button is usually the only one without text content initially
-    const menuBtn = screen.getByRole('button', { name: '' }); 
-    fireEvent.click(menuBtn);
-
-    // After clicking, the "Signup" link should appear in the mobile overlay
-    const signupLinks = screen.getAllByText(/Signup/i);
-    expect(signupLinks.length).toBe(2); // One desktop, one mobile
-  });
-
-  it('6. should successfully logout using the dropdown button', () => {
-    const logoutMock = vi.fn();
-    (useAuth as any).mockReturnValue({ 
-      user: { name: 'John Doe', role: 'student' }, 
-      logout: logoutMock 
-    });
-    renderNavbar();
-
-    // Open the dropdown
-    fireEvent.click(screen.getByText('John Doe'));
+    const userButton = screen.getByRole('button', { name: /jane doe/i });
     
-    // FIX: Select only the logout button within the dropdown 
-    // to avoid the "multiple elements" error
-    const logoutBtns = screen.getAllByText(/Logout/i);
-    fireEvent.click(logoutBtns[0]); // Desktop logout is the first instance in DOM
+    // Initially dropdown is hidden (Logout button shouldn't exist)
+    expect(screen.queryByText('Logout')).not.toBeInTheDocument();
 
-    expect(logoutMock).toHaveBeenCalledTimes(1);
+    // Click to open
+    fireEvent.click(userButton);
+    expect(screen.getAllByText(/Logout/i)[0]).toBeInTheDocument();
+    expect(screen.getByText('Parent')).toBeInTheDocument(); // Check capitalized role
+
+    // Click again to close
+    fireEvent.click(userButton);
+    expect(screen.queryByText('Logout')).not.toBeInTheDocument();
+  });
+
+  it('calls logout function and closes menu when logout is clicked', () => {
+    (useAuth as any).mockReturnValue({
+      user: { name: 'Jane Doe', role: 'parent', email: 'jane@test.com' },
+      logout: mockLogout,
+    });
+    renderNavbar();
+
+    // 1. Open the menu
+    const userButton = screen.getByRole('button', { name: /jane doe/i });
+    fireEvent.click(userButton);
+
+    // 2. Find the logout button specifically
+    // We use getAllByText because "Logout" exists in both MobileMenu and UserDropdown
+    const logoutButtons = screen.getAllByText(/Logout/i);
+    
+    // 3. Click the desktop version (usually the first one rendered)
+    fireEvent.click(logoutButtons[0]);
+    
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens mobile menu when hamburger icon is clicked', () => {
+    (useAuth as any).mockReturnValue({ user: null, logout: mockLogout });
+    renderNavbar();
+
+    // The mobile menu button (Menu icon)
+    const mobileToggle = screen.getByRole('button', { name: '' }); // Lucide icons usually don't have text
+    
+    fireEvent.click(mobileToggle);
+    
+    // In MobileMenu, "Login" is displayed as a link
+    expect(screen.getByText('Login')).toBeInTheDocument();
   });
 });

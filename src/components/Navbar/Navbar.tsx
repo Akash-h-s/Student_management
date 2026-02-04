@@ -15,7 +15,7 @@ import{
  
 } from 'lucide-react';
 
-// Type Definitions
+
 type Role = 'student' | 'parent' | 'teacher' | 'admin';
 
 interface NavLink {
