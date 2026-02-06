@@ -11,14 +11,6 @@ interface ContactItem {
   label: string;
   value: string;
 }
-
-interface FooterProps {
-  services?: string[];
-  aboutText?: string;
-  contactInfo?: ContactInfo;
-  companyName?: string;
-}
-
 // Constants
 const DEFAULT_SERVICES: string[] = [
   "Student Management",
@@ -44,16 +36,16 @@ const FooterSection: React.FC<{ title: string; children: React.ReactNode }> = ({
   title, 
   children 
 }) => (
-  <div className="flex-1 min-w-[250px] flex flex-col items-center">
-    <h3 className="text-lg mb-4 text-yellow-400 font-bold">{title}</h3>
+  <div className="flex-1 min-w-full sm:min-w-[200px] md:min-w-[250px] flex flex-col items-center mb-6 sm:mb-8 md:mb-0">
+    <h3 className="text-base sm:text-lg mb-3 sm:mb-4 text-yellow-400 font-bold">{title}</h3>
     {children}
   </div>
 );
 
 const ServicesList: React.FC<{ services: string[] }> = ({ services }) => (
-  <ul className="list-none p-0 m-0 text-left">
+  <ul className="list-none p-0 m-0 text-left text-center sm:text-left">
     {services.map((service, index) => (
-      <li key={index} className="text-sm leading-6 mb-2">
+      <li key={index} className="text-xs sm:text-sm leading-5 sm:leading-6 mb-1 sm:mb-2">
         {service}
       </li>
     ))}
@@ -68,9 +60,9 @@ const ContactDetails: React.FC<{ contactInfo: ContactInfo }> = ({ contactInfo })
   ];
 
   return (
-    <div className="text-left">
+    <div className="text-left text-center sm:text-left">
       {contactItems.map((item, index) => (
-        <p key={index} className="text-sm leading-6">
+        <p key={index} className="text-xs sm:text-sm leading-5 sm:leading-6 mb-1 sm:mb-2">
           {item.label}: {item.value}
         </p>
       ))}
@@ -79,7 +71,7 @@ const ContactDetails: React.FC<{ contactInfo: ContactInfo }> = ({ contactInfo })
 };
 
 const Copyright: React.FC<{ companyName: string }> = ({ companyName }) => (
-  <div className="text-center mt-8 text-sm text-gray-400 border-t border-gray-700 pt-4">
+  <div className="text-center mt-6 sm:mt-8 text-xs sm:text-sm text-gray-400 border-t border-gray-700 pt-3 sm:pt-4">
     <p>
       &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
     </p>
@@ -94,12 +86,12 @@ const Footer = ({
   companyName = DEFAULT_COMPANY_NAME,
 }) => {
   return (
-    <footer className="bg-slate-800 text-gray-100 pt-10 px-5 font-sans">
-      <div className="flex flex-wrap justify-center text-center gap-5 max-w-6xl mx-auto">
+    <footer className="bg-slate-800 text-gray-100 pt-8 sm:pt-10 px-4 sm:px-5 font-sans">
+      <div className="flex flex-wrap justify-center text-center gap-4 sm:gap-5 md:gap-8 max-w-6xl mx-auto">
         
         {/* About Section */}
         <FooterSection title="About Us">
-          <p className="text-sm leading-6 max-w-xs text-left">
+          <p className="text-xs sm:text-sm leading-5 sm:leading-6 max-w-xs text-left">
             {aboutText}
           </p>
         </FooterSection>

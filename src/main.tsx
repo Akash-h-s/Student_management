@@ -3,7 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client';
-import { apolloClient } from './config/appoloClient';
+import { apolloClient } from './config/apolloClient';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import './index.css';

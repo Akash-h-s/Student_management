@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi, describe, it, expect } from 'vitest';
+import { vi } from 'vitest';
 import { useAuth } from '../../context/AuthContext';
 import AdminDashboard from './AdminDashboard';
 

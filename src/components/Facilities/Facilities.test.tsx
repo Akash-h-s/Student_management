@@ -8,7 +8,7 @@ describe("Facilities Component", () => {
 
     expect(screen.getByText("Facilities for Students")).toBeInTheDocument();
 
-   
+
     expect(screen.getByText(/Supporting education through/i)).toBeInTheDocument();
     expect(screen.getByText("benefits")).toHaveClass("text-orange-500");
     expect(screen.getByText(/and resources/i)).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("Facilities Component", () => {
   it("renders correct descriptions for facility cards", () => {
     render(<Facilities />);
 
-   
+
     expect(
       screen.getByText(/Digital classrooms with projectors and interactive boards/i)
     ).toBeInTheDocument();
@@ -50,17 +50,20 @@ describe("Facilities Component", () => {
   it("applies correct styling classes to icons containers", () => {
     const { container } = render(<Facilities />);
 
-    
+
     const firstIconContainer = container.querySelector(".bg-blue-100");
     expect(firstIconContainer).toBeInTheDocument();
-    expect(firstIconContainer).toHaveClass("w-16", "h-16", "rounded-xl");
+    // Use flexible class check
+    expect(firstIconContainer).toHaveClass("md:w-16");
+    expect(firstIconContainer).toHaveClass("md:h-16");
+    expect(firstIconContainer).toHaveClass("sm:rounded-xl");
   });
 
- 
+
 
   it("does not render the popup by default", () => {
     render(<Facilities />);
-    
+
     expect(screen.queryByText("Close")).not.toBeInTheDocument();
   });
 });

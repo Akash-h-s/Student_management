@@ -1,5 +1,5 @@
 // src/config/apolloClient.ts
-import { ApolloClient, InMemoryCache, createHttpLink, split } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, split, ApolloLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
@@ -14,22 +14,47 @@ const httpLink = createHttpLink({
 const wsLink = new GraphQLWsLink(
   createClient({
     url: 'ws://localhost:8085/v1/graphql',
-    connectionParams: {
-      headers: {
-        'x-hasura-admin-secret': 'myadminsecretkey',
-      },
+    connectionParams: () => {
+      const token = localStorage.getItem('token');
+      return {
+        headers: {
+          ...(token && { authorization: `Bearer ${token}` }),
+          ...(!token && { 'x-hasura-role': 'anonymous' }),
+        },
+      };
     },
   })
 );
 
-// Auth link - adds token to every request
-const authLink = setContext((_, { headers }) => {
+// List of public operations that don't require JWT (login, signup)
+const PUBLIC_OPERATIONS = [
+  'Login',
+  'Signup',
+  'CheckAdminEmail',
+  'GetAdminByEmail',
+  'GetTeacherByEmail',
+  'GetParentByEmail',
+  'GetStudentByEmail',
+  'InsertAdmin',
+];
+
+// Auth link - adds JWT token only for protected operations, or anonymous role for public operations
+const authLink = setContext((operation, { headers }) => {
   const token = localStorage.getItem('token');
+  const operationName = operation.operationName;
+  
+  // Check if this is a public operation
+  const isPublicOperation = PUBLIC_OPERATIONS.includes(operationName || '');
+  
   return {
     headers: {
       ...headers,
-      'x-hasura-admin-secret': 'myadminsecretkey',
-      ...(token && { authorization: `Bearer ${token}` }),
+      // For public operations, send anonymous role
+      ...(isPublicOperation && { 'x-hasura-role': 'anonymous' }),
+      // For protected operations, send JWT token
+      ...(token && !isPublicOperation && { authorization: `Bearer ${token}` }),
+      // For authenticated operations without token, still send user role if available
+      ...(!token && !isPublicOperation && { 'x-hasura-role': 'user' }),
     },
   };
 });

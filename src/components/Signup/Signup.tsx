@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useLazyQuery, useMutation } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import { Link, useNavigate } from 'react-router-dom';
-import bcrypt from 'bcryptjs';
+
 import { useAuth } from '../../context/AuthContext';
-import { Building2, Mail, Lock, Phone, AlertCircle} from 'lucide-react';
-import type{ LucideIcon} from 'lucide-react'
-import { CHECK_ADMIN_EMAIL, INSERT_ADMIN } from '../../graphql/signup';
+import { Building2, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react'
+import { CHECK_ADMIN_EMAIL } from '../../graphql/signup';
+import { authService } from '../../services/authService';
 
 
 interface FormData {
@@ -122,18 +123,18 @@ const validateForm = (form: FormData): FormErrors => {
 
 // Reusable Components
 const Header = () => (
-  <div className="text-center mb-8">
-    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-      <Building2 className="w-8 h-8 text-white" />
+  <div className="text-center mb-6 sm:mb-8">
+    <div className="w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+      <Building2 className="w-6 sm:w-7 md:w-8 h-6 sm:h-7 md:h-8 text-white" />
     </div>
-    <h2 className="text-2xl font-bold text-gray-900">Admin Registration</h2>
-    <p className="text-gray-600 text-sm mt-2">Create your school's admin account</p>
+    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Registration</h2>
+    <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">Create your school's admin account</p>
   </div>
 );
 
 const ErrorMessage = ({ message }: { message: string }) => (
-  <div className="flex items-center gap-1 mt-1 text-red-600 text-sm">
-    <AlertCircle className="w-4 h-4" />
+  <div className="flex items-center gap-1 mt-1 text-red-600 text-xs sm:text-sm">
+    <AlertCircle className="w-3 sm:w-4 h-3 sm:h-4 flex-shrink-0" />
     <span>{message}</span>
   </div>
 );
@@ -143,22 +144,21 @@ const InputField = ({ config, value, error, onChange }: InputFieldProps) => {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
         {config.label} <span className="text-red-500">*</span>
       </label>
       <div className="relative">
-        <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
         <input
           type={config.type}
           name={config.name}
           placeholder={config.placeholder}
           value={value}
           onChange={onChange}
-          className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-            error 
-              ? 'border-red-300 focus:ring-red-500' 
-              : 'border-gray-300 focus:ring-blue-500'
-          }`}
+          className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 text-sm border rounded-lg focus:outline-none focus:ring-2 ${error
+            ? 'border-red-300 focus:ring-red-500'
+            : 'border-gray-300 focus:ring-blue-500'
+            }`}
         />
       </div>
       {error && <ErrorMessage message={error} />}
@@ -174,11 +174,10 @@ const SubmitButton = ({ loading }: { loading: boolean }) => (
   <button
     type="submit"
     disabled={loading}
-    className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
-      loading
-        ? 'bg-gray-400 cursor-not-allowed'
-        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
-    }`}
+    className={`w-full py-2 sm:py-3 text-sm sm:text-base rounded-lg font-semibold text-white transition-all ${loading
+      ? 'bg-gray-400 cursor-not-allowed'
+      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
+      }`}
   >
     {loading ? (
       <span className="flex items-center justify-center gap-2">
@@ -192,7 +191,7 @@ const SubmitButton = ({ loading }: { loading: boolean }) => (
 );
 
 const LoginLink = () => (
-  <p className="text-center mt-6 text-sm text-gray-600">
+  <p className="text-center mt-4 sm:mt-6 text-xs sm:text-sm text-gray-600">
     Already have an account?{' '}
     <Link to={ROUTES.login} className="text-blue-600 hover:underline font-medium">
       Login here
@@ -210,12 +209,11 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   const [checkEmail] = useLazyQuery(CHECK_ADMIN_EMAIL);
-  const [insertAdmin] = useMutation(INSERT_ADMIN);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    
+
     // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -245,29 +243,25 @@ export default function Signup() {
         return;
       }
 
-      // Hash password
-      const passwordHash = await bcrypt.hash(form.password, 10);
-
-      // Insert new admin
-      const { data } = await insertAdmin({
-        variables: {
-          school_name: form.schoolName,
-          email: form.email,
-          password_hash: passwordHash,
-          phone: form.phone,
-        },
+      // Call backend signup API
+      const response = await authService.signup({
+        schoolName: form.schoolName,
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
       });
 
-      if (data?.insert_admins_one) {
+      if (response.success && response.token && response.user) {
         const user = {
-          id: data.insert_admins_one.id.toString(),
-          name: data.insert_admins_one.school_name,
-          email: data.insert_admins_one.email,
+          id: parseInt(response.user.id.toString(), 10),
+          name: response.user.name,
+          email: response.user.email,
           role: 'admin' as const,
         };
 
-        const token = `jwt-${user.id}-${Date.now()}`;
-        login(user, token);
+        login(user, response.token);
+
+
 
         alert(SUCCESS_MESSAGES.signupSuccess);
         navigate(ROUTES.adminDashboard);
@@ -281,11 +275,11 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
+      <div className="w-full max-w-xs sm:max-w-md bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-xl p-5 sm:p-6 md:p-8">
         <Header />
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 md:space-y-5">
           {FORM_FIELDS.map((config) => (
             <InputField
               key={config.name}

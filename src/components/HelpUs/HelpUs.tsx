@@ -98,20 +98,20 @@ const DEFAULT_GUIDES: Guide[] = [
 
 // Reusable Components (WITHOUT React.FC - Modern Approach)
 const GuideImage = ({ src, alt }: GuideImageProps) => (
-  <div className="md:w-1/2">
-    <img src={src} alt={alt} className="w-full h-full object-cover min-h-[500px]" />
+  <div className="w-full md:w-1/2 h-64 sm:h-80 md:h-auto md:min-h-[300px] lg:min-h-[500px]">
+    <img src={src} alt={alt} className="w-full h-full object-cover" />
   </div>
 );
 
 const GuideContent = ({ title, description, steps, bgColor }: GuideContentProps) => (
-  <div className={`${bgColor} md:w-1/2 px-12 py-16 flex flex-col justify-center min-h-[500px]`}>
-    <h2 className="text-3xl font-bold text-white mb-6">{title}</h2>
-    <p className="text-white/90 text-lg leading-relaxed max-w-md">
+  <div className={`${bgColor} w-full md:w-1/2 px-4 sm:px-8 md:px-12 py-8 sm:py-12 md:py-16 flex flex-col justify-center min-h-64 sm:min-h-80 md:min-h-[300px] lg:min-h-[500px]`}>
+    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3 sm:mb-4 md:mb-6">{title}</h2>
+    <p className="text-white/90 text-sm sm:text-base md:text-lg leading-relaxed">
       {description}
     </p>
-    <ul className="mt-8 space-y-4 list-disc list-inside text-white">
+    <ul className="mt-4 sm:mt-6 md:mt-8 space-y-2 sm:space-y-3 md:space-y-4 list-disc list-inside text-white">
       {steps.map((step, idx) => (
-        <li key={idx} className="text-lg leading-relaxed">
+        <li key={idx} className="text-sm sm:text-base md:text-lg leading-relaxed">
           {step}
         </li>
       ))}
@@ -120,7 +120,7 @@ const GuideContent = ({ title, description, steps, bgColor }: GuideContentProps)
 );
 
 const GuideCard = ({ guide, isImageLeft }: GuideCardProps) => (
-  <div className="flex flex-col md:flex-row mb-10 justify-between rounded-3xl overflow-hidden shadow-xl">
+  <div className="flex flex-col md:flex-row mb-8 sm:mb-10 justify-between rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg sm:shadow-xl">
     {isImageLeft && <GuideImage src={guide.image} alt={guide.imageAlt} />}
     
     <GuideContent
@@ -137,8 +137,8 @@ const GuideCard = ({ guide, isImageLeft }: GuideCardProps) => (
 // Main Component
 const HelpUs = ({ guides = DEFAULT_GUIDES }: HelpUsProps) => {
   return (
-    <section className="bg-slate-900 py-20 px-6 font-akash space-y-20">
-      <div className="max-w-6xl mx-auto space-y-20">
+    <section className="bg-slate-900 py-12 sm:py-16 md:py-20 px-4 sm:px-6 font-akash space-y-8 sm:space-y-12 md:space-y-20">
+      <div className="max-w-6xl mx-auto space-y-8 sm:space-y-12 md:space-y-20">
         {guides.map((guide, index) => {
           const isImageLeft = index % 2 !== 0;
 

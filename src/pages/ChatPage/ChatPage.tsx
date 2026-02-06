@@ -384,11 +384,18 @@ MessageBubble.displayName = 'MessageBubble';
 interface ChatHeaderProps {
   chat: Chat;
   isTeacher: boolean;
+  onBack?: () => void;
 }
 
-const ChatHeader = React.memo(({ chat, isTeacher }: ChatHeaderProps) => (
-  <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+const ChatHeader = React.memo(({ chat, isTeacher, onBack }: ChatHeaderProps) => (
+  <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6">
     <div className="flex items-center gap-3">
+      {/* Back button only on small screens */}
+      {onBack && (
+        <button onClick={onBack} className="md:hidden p-2 rounded-md hover:bg-gray-100 mr-1">
+          ←
+        </button>
+      )}
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
         CHAT_COLORS[chat.type]
       }`}>
@@ -465,7 +472,32 @@ const ChatSystem: React.FC = () => {
   // ==================== MEMOIZED DATA ====================
   const chats = useMemo(() => {
     if (!chatsData?.chat_participants) return [];
-    return chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId));
+    // Transform all chats from server
+    const transformed = chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId));
+    
+    // Deduplicate by chat id first
+    const seenIds = new Set<number>();
+    const dedupedById = transformed.filter((c: Chat) => {
+      if (seenIds.has(c.id)) return false;
+      seenIds.add(c.id);
+      return true;
+    });
+    
+    // Further deduplicate by chat name (prevent same parent showing twice)
+    const seenNames = new Set<string>();
+    const dedupedByName = dedupedById.filter((c: Chat) => {
+      const key = `${c.type}:${c.name}`;
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
+    
+    // Sort by last message timestamp (most recent first)
+    return dedupedByName.sort((a, b) => {
+      const ta = a.last_message ? new Date(a.last_message.timestamp).getTime() : 0;
+      const tb = b.last_message ? new Date(b.last_message.timestamp).getTime() : 0;
+      return tb - ta;
+    });
   }, [chatsData, currentUserId]);
 
   const messages = useMemo(() => {
@@ -699,9 +731,9 @@ const ChatSystem: React.FC = () => {
 
   // ==================== RENDER ====================
   return (
-    <div className="h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex">
-      {/* Sidebar */}
-      <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex flex-col md:flex-row">
+      {/* Sidebar: hide on small screens when a chat is selected */}
+      <div className={`w-full md:w-96 bg-white md:border-r border-b border-gray-200 md:border-b-0 ${selectedChat ? 'hidden md:flex' : 'flex'} flex-col`}>
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="mb-4">
@@ -857,12 +889,12 @@ const ChatSystem: React.FC = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${selectedChat ? 'flex-1 flex flex-col' : 'hidden md:flex md:flex-1 md:flex-col'}`}>
         {selectedChat ? (
           <>
-            <ChatHeader chat={selectedChat} isTeacher={isTeacher} />
-            
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <ChatHeader chat={selectedChat} isTeacher={isTeacher} onBack={() => setSelectedChat(null)} />
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24 md:pb-0">
               {messages.map((message:any) => (
                 <MessageBubble
                   key={message.id}
@@ -874,8 +906,9 @@ const ChatSystem: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
             
-            <div className="bg-white border-t border-gray-200 p-4">
-              <div className="flex items-end gap-3">
+            {/* Fixed input on mobile, static on md+ */}
+            <div className="bg-white border-t border-gray-200 p-3 fixed bottom-0 left-0 right-0 md:static md:p-4">
+              <div className="max-w-7xl mx-auto flex items-end gap-3">
                 <textarea
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
