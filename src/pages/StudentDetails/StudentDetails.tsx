@@ -140,7 +140,7 @@ const groupMarksByExam = (marks: Mark[]): Record<string, Mark[]> => {
 
   marks.forEach((mark) => {
     const examId = mark.exam.id;
-    
+
     // Initialize exam tracking if first time seeing this exam
     if (!seenExamIds.has(examId)) {
       seenExamIds.add(examId);
@@ -490,7 +490,7 @@ export default function StudentDetails() {
       <ErrorState
         title={MESSAGES.ERROR}
         message={error.message}
-        onRetry={refetch}
+        onRetry={() => refetch()}
         additionalInfo={`Parent ID: ${user?.id || 'Not available'}`}
       />
     );
@@ -505,7 +505,7 @@ export default function StudentDetails() {
       <ErrorState
         title="Student Details"
         message={MESSAGES.NO_STUDENTS}
-        onRetry={refetch}
+        onRetry={() => refetch()}
         additionalInfo={`Parent ID: ${user?.id}`}
       />
     );

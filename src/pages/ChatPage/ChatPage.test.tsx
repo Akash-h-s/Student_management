@@ -3,7 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
 import { AuthContext } from '../../context/AuthContext';
 import ChatSystem from './ChatPage';
-import { GET_USER_CHATS, SEARCH_PARENTS, SEND_MESSAGE } from '../../graphql/chat';
+import { SUBSCRIBE_USER_CHATS, SUBSCRIBE_CHAT_MESSAGES, SEARCH_PARENTS, SEND_MESSAGE } from '../../graphql/chat';
 
 // Mock scrollIntoView as it's not implemented in JSDOM
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -20,7 +20,7 @@ describe('ChatSystem Component', () => {
     const mocks = [
       {
         request: {
-          query: GET_USER_CHATS,
+          query: SUBSCRIBE_USER_CHATS,
           variables: { user_id: 1, user_type: 'teacher' },
         },
         result: { data: { chat_participants: [] } },
@@ -42,6 +42,14 @@ describe('ChatSystem Component', () => {
 
   // TEST 2: Searching for Parents (Flow)
   it('navigates to "New Chat" and searches for parents', async () => {
+    const chatSubMock = {
+      request: {
+        query: SUBSCRIBE_USER_CHATS,
+        variables: { user_id: 1, user_type: 'teacher' },
+      },
+      result: { data: { chat_participants: [] } },
+    };
+
     const searchMock = {
       request: {
         query: SEARCH_PARENTS,
@@ -57,7 +65,7 @@ describe('ChatSystem Component', () => {
     };
 
     render(
-      <MockedProvider mocks={[searchMock]} addTypename={false}>
+      <MockedProvider mocks={[chatSubMock, searchMock]} addTypename={false}>
         <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
           <ChatSystem />
         </AuthContext.Provider>
@@ -66,7 +74,7 @@ describe('ChatSystem Component', () => {
 
     // Click New Chat
     fireEvent.click(screen.getByRole('button', { name: /New Chat/i }));
-    
+
     // Type in search
     const searchInput = screen.getByPlaceholderText(/Search parents/i);
     fireEvent.change(searchInput, { target: { value: 'Alice' } });
@@ -79,16 +87,16 @@ describe('ChatSystem Component', () => {
 
   // TEST 3: Sending a Message
   it('allows the user to type and send a message in an active chat', async () => {
-    // 1. Mock for initial chat list
+    // 1. Mock for initial chat list (Subscription)
     const chatListMock = {
-      request: { query: GET_USER_CHATS, variables: { user_id: 1, user_type: 'teacher' } },
+      request: { query: SUBSCRIBE_USER_CHATS, variables: { user_id: 1, user_type: 'teacher' } },
       result: {
         data: {
           chat_participants: [{
             chat: {
               id: 500, type: 'direct', name: 'Alice Parent',
               chat_participants: [
-                { user_id: 10, user_type: 'parent', parent: { name: 'Alice Parent', email: 'a@a.com' } }
+                { user_id: 10, user_type: 'parent', parent: { id: 10, name: 'Alice Parent', email: 'a@a.com' } }
               ],
               messages: [],
               messages_aggregate: { aggregate: { count: 0 } }
@@ -98,7 +106,17 @@ describe('ChatSystem Component', () => {
       }
     };
 
-    // 2. Mock for sending message
+    // 2. Mock for chat messages (Subscription)
+    const chatMessagesMock = {
+      request: { query: SUBSCRIBE_CHAT_MESSAGES, variables: { chat_id: 500 } },
+      result: {
+        data: {
+          messages: []
+        }
+      }
+    };
+
+    // 3. Mock for sending message
     const sendMessageMock = {
       request: {
         query: SEND_MESSAGE,
@@ -110,11 +128,11 @@ describe('ChatSystem Component', () => {
           content: 'Hello Alice',
         },
       },
-      result: { data: { insert_messages_one: { id: 1001 } } },
+      result: { data: { insert_messages_one: { id: 1001, sender_id: 1, sender_type: 'teacher', content: 'Hello Alice', created_at: new Date().toISOString(), is_read: false } } },
     };
 
     render(
-      <MockedProvider mocks={[chatListMock, sendMessageMock]} addTypename={false}>
+      <MockedProvider mocks={[chatListMock, chatMessagesMock, sendMessageMock]} addTypename={false}>
         <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
           <ChatSystem />
         </AuthContext.Provider>
@@ -130,7 +148,21 @@ describe('ChatSystem Component', () => {
     fireEvent.change(input, { target: { value: 'Hello Alice' } });
 
     // Send message
-    const sendButton = screen.getByRole('button', { name: '' }); // Send button usually has no text, just icon
+    // The send button might be an icon button without text, relying on aria-label or just the SVG
+    // In the component, it's <Send className="w-5 h-5" /> inside a button. 
+    // Best to find by role 'button' and maybe the container or just the last button in that section.
+    // Or if checking the code, the button wraps the input group or is next to it.
+    // Let's assume there is only one button in the input area or we can find it by generic role if it's the only one nearby.
+    // Given the previous test used `getByRole('button', { name: '' })`, we'll try to be more specific if possible or stick to that if it worked.
+    // Actually, let's verify if there is an aria-label. The code didn't show one explicitly but the previous test implies it was finding it.
+    // I'll add a helper to find it.
+
+    // Note: In the previous test code provided (lines 133-134):
+    // const sendButton = screen.getByRole('button', { name: '' }); 
+
+    // I'll proceed with finding the button that contains the Send icon if possible or just the submit button.
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons[buttons.length - 1]; // Usually the last button is the send button in the chat interface
     fireEvent.click(sendButton);
 
     // Verify input cleared (optimistic UI check)

@@ -2,7 +2,6 @@
 import { gql } from '@apollo/client';
 
 // Get all chats for a user
-// Get all chats for a user
 export const GET_USER_CHATS = gql`
   query GetUserChats($user_id: Int!, $user_type: String!) {
     chat_participants(
@@ -32,7 +31,6 @@ export const GET_USER_CHATS = gql`
         messages(order_by: { created_at: desc }, limit: 1) {
           id
           sender_id
-          sender_name
           sender_type
           content
           created_at
@@ -62,7 +60,73 @@ export const GET_CHAT_MESSAGES = gql`
     ) {
       id
       sender_id
-      sender_name
+      sender_type
+      content
+      created_at
+      is_read
+    }
+  }
+`;
+
+// Subscribe to user chats (Real-time)
+export const SUBSCRIBE_USER_CHATS = gql`
+  subscription SubscribeUserChats($user_id: Int!, $user_type: String!) {
+    chat_participants(
+      where: { 
+        user_id: { _eq: $user_id }
+        user_type: { _eq: $user_type }
+      }
+    ) {
+      chat {
+        id
+        type
+        name
+        chat_participants {
+          user_id
+          user_type
+          parent {
+            id
+            name
+            email
+          }
+          teacher {
+            id
+            name
+            email
+          }
+        }
+        messages(order_by: { created_at: desc }, limit: 1) {
+          id
+          sender_id
+          sender_type
+          content
+          created_at
+          is_read
+        }
+        messages_aggregate(
+          where: { 
+            is_read: { _eq: false }
+            sender_id: { _neq: $user_id }
+          }
+        ) {
+          aggregate {
+            count
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Subscribe to chat messages (Real-time)
+export const SUBSCRIBE_CHAT_MESSAGES = gql`
+  subscription SubscribeChatMessages($chat_id: Int!) {
+    messages(
+      where: { chat_id: { _eq: $chat_id } }
+      order_by: { created_at: asc }
+    ) {
+      id
+      sender_id
       sender_type
       content
       created_at
@@ -157,7 +221,6 @@ export const SEND_MESSAGE = gql`
   mutation SendMessage(
     $chat_id: Int!
     $sender_id: Int!
-    $sender_name: String!
     $sender_type: String!
     $content: String!
   ) {
@@ -165,14 +228,12 @@ export const SEND_MESSAGE = gql`
       object: {
         chat_id: $chat_id
         sender_id: $sender_id
-        sender_name: $sender_name
         sender_type: $sender_type
         content: $content
       }
     ) {
       id
       sender_id
-      sender_name
       sender_type
       content
       created_at

@@ -1,25 +1,25 @@
 // src/components/ChatSystem.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
+import { useMutation, useLazyQuery, useSubscription } from '@apollo/client';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  MessageCircle, 
-  Search, 
-  Send, 
-  Users, 
-  X, 
+import {
+  MessageCircle,
+  Search,
+  Send,
+  Users,
+  X,
   Check
 } from 'lucide-react';
 import {
-  GET_USER_CHATS,
-  GET_CHAT_MESSAGES,
   SEARCH_PARENTS,
   GET_ALL_PARENTS,
   CREATE_CHAT,
   ADD_CHAT_PARTICIPANTS,
   SEND_MESSAGE,
   MARK_MESSAGES_READ,
-  CHECK_EXISTING_CHAT
+  CHECK_EXISTING_CHAT,
+  SUBSCRIBE_USER_CHATS,
+  SUBSCRIBE_CHAT_MESSAGES
 } from '../../graphql/chat';
 
 // ==================== TYPES ====================
@@ -55,8 +55,6 @@ interface Chat {
 }
 
 // ==================== CONSTANTS ====================
-const POLLING_INTERVAL_MS = 3000;
-
 const CHAT_COLORS = {
   group: 'bg-purple-500',
   direct: 'bg-indigo-500',
@@ -130,34 +128,36 @@ const convertToIST = (utcTimestamp: string): Date => {
 const formatTime = (timestamp: string): string => {
   const istDate = convertToIST(timestamp);
   const nowIST = new Date(new Date().getTime() + IST_OFFSET_MS);
-  
+
   const istDateStr = istDate.toISOString().split('T')[0];
   const nowISTStr = nowIST.toISOString().split('T')[0];
   const yesterdayISTStr = new Date(nowIST.getTime() - DAY_MS).toISOString().split('T')[0];
-  
+
   const hours = istDate.getUTCHours();
   const minutes = istDate.getUTCMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const displayMinutes = minutes.toString().padStart(2, '0');
   const timeString = `${displayHours}:${displayMinutes} ${ampm}`;
-  
+
   if (istDateStr === nowISTStr) {
     return timeString;
   }
-  
+
   if (istDateStr === yesterdayISTStr) {
     return `Yesterday ${timeString}`;
   }
-  
+
   const day = istDate.getUTCDate();
   const month = MONTH_NAMES[istDate.getUTCMonth()];
   return `${day} ${month}, ${timeString}`;
 };
 
-const transformChatData = (cp: any, currentUserId: number): Chat => {
+
+
+const transformChatData = (cp: any, currentUserId: number, currentUserName: string): Chat => {
   const chat = cp.chat;
-  
+
   const participants = chat.chat_participants
     .filter((p: any) => p.user_id !== currentUserId)
     .map((p: any) => {
@@ -175,33 +175,55 @@ const transformChatData = (cp: any, currentUserId: number): Chat => {
     chatName = participants[0].name;
   }
 
+  // Helper for last message
+  const lastMsg = chat.messages[0];
+  let lastMsgSenderName = 'Unknown';
+  if (lastMsg) {
+    if (lastMsg.sender_id === currentUserId) {
+      lastMsgSenderName = currentUserName;
+    } else {
+      const sender = participants.find((p: any) => p.id === lastMsg.sender_id && p.role === lastMsg.sender_type);
+      lastMsgSenderName = sender?.name || 'Unknown';
+    }
+  }
+
   return {
     id: chat.id,
     type: chat.type,
     name: chatName,
     participants,
-    last_message: chat.messages[0] ? {
-      id: chat.messages[0].id,
-      sender_id: chat.messages[0].sender_id,
-      sender_name: chat.messages[0].sender_name,
-      sender_type: chat.messages[0].sender_type,
-      content: chat.messages[0].content,
-      timestamp: chat.messages[0].created_at,
-      is_read: chat.messages[0].is_read,
+    last_message: lastMsg ? {
+      id: lastMsg.id,
+      sender_id: lastMsg.sender_id,
+      sender_name: lastMsgSenderName,
+      sender_type: lastMsg.sender_type,
+      content: lastMsg.content,
+      timestamp: lastMsg.created_at,
+      is_read: lastMsg.is_read,
     } : undefined,
     unread_count: chat.messages_aggregate.aggregate.count || 0,
   };
 };
 
-const transformMessageData = (m: any): Message => ({
-  id: m.id,
-  sender_id: m.sender_id,
-  sender_name: m.sender_name,
-  sender_type: m.sender_type,
-  content: m.content,
-  timestamp: m.created_at,
-  is_read: m.is_read,
-});
+const transformMessageData = (m: any, chatParticipants: User[], currentUserId: number, currentUserName: string): Message => {
+  let senderName = 'Unknown';
+  if (m.sender_id === currentUserId) {
+    senderName = currentUserName;
+  } else {
+    const sender = chatParticipants.find(p => p.id === m.sender_id && p.role === m.sender_type);
+    senderName = sender?.name || 'Unknown';
+  }
+
+  return {
+    id: m.id,
+    sender_id: m.sender_id,
+    sender_name: senderName,
+    sender_type: m.sender_type,
+    content: m.content,
+    timestamp: m.created_at,
+    is_read: m.is_read,
+  };
+};
 
 const transformUserData = (user: any, role: UserRole): User => ({
   id: user.id,
@@ -237,14 +259,12 @@ interface ChatListItemProps {
 const ChatListItem = React.memo(({ chat, isSelected, currentUserId, onSelect }: ChatListItemProps) => (
   <button
     onClick={() => onSelect(chat)}
-    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
-      isSelected ? 'bg-indigo-50' : ''
-    }`}
+    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${isSelected ? 'bg-indigo-50' : ''
+      }`}
   >
     <div className="flex items-start gap-3">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
-        CHAT_COLORS[chat.type]
-      }`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${CHAT_COLORS[chat.type]
+        }`}>
         {chat.type === 'group' ? <Users className="w-6 h-6" /> : getInitials(chat.name)}
       </div>
       <div className="flex-1 min-w-0">
@@ -313,9 +333,8 @@ const GroupMemberItem = React.memo(({ parent, isSelected, onToggle }: GroupMembe
     className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
   >
     <div className="flex items-center gap-3">
-      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-        isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-300'
-      }`}>
+      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-300'
+        }`}>
         {isSelected && <Check className="w-4 h-4 text-white" />}
       </div>
       <div className="flex-1">
@@ -353,7 +372,7 @@ interface MessageBubbleProps {
 
 const MessageBubble = React.memo(({ message, isOwn, isParent }: MessageBubbleProps) => {
   const isTeacherMessage = message.sender_type === 'teacher';
-  
+
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-md ${isOwn ? 'order-2' : 'order-1'}`}>
@@ -363,13 +382,12 @@ const MessageBubble = React.memo(({ message, isOwn, isParent }: MessageBubblePro
             {isTeacherMessage && isParent && ' (Teacher)'}
           </p>
         )}
-        <div className={`px-4 py-2 rounded-2xl ${
-          isOwn ? 
-            'bg-indigo-600 text-white rounded-br-sm' : 
-            isTeacherMessage && isParent ?
-              'bg-blue-100 text-gray-900 rounded-bl-sm border border-blue-200' :
-              'bg-gray-100 text-gray-900 rounded-bl-sm'
-        }`}>
+        <div className={`px-4 py-2 rounded-2xl ${isOwn ?
+          'bg-indigo-600 text-white rounded-br-sm' :
+          isTeacherMessage && isParent ?
+            'bg-blue-100 text-gray-900 rounded-bl-sm border border-blue-200' :
+            'bg-gray-100 text-gray-900 rounded-bl-sm'
+          }`}>
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         </div>
         <p className={`text-xs text-gray-400 mt-1 ${isOwn ? 'text-right' : 'text-left'} mx-3`}>
@@ -396,16 +414,15 @@ const ChatHeader = React.memo(({ chat, isTeacher, onBack }: ChatHeaderProps) => 
           ←
         </button>
       )}
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-        CHAT_COLORS[chat.type]
-      }`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${CHAT_COLORS[chat.type]
+        }`}>
         {chat.type === 'group' ? <Users className="w-5 h-5" /> : getInitials(chat.name)}
       </div>
       <div>
         <h2 className="font-semibold text-gray-900">{chat.name}</h2>
         <p className="text-xs text-gray-500">
-          {chat.type === 'group' ? 
-            `Group • ${chat.participants.length + 1} members` : 
+          {chat.type === 'group' ?
+            `Group • ${chat.participants.length + 1} members` :
             isTeacher ? 'Parent' : 'Teacher'}
         </p>
       </div>
@@ -417,7 +434,7 @@ ChatHeader.displayName = 'ChatHeader';
 // ==================== MAIN COMPONENT ====================
 const ChatSystem: React.FC = () => {
   const { user: currentUser } = useAuth();
-  
+
   const currentUserId = parseUserId(currentUser?.id);
   const currentUserRole = (currentUser?.role || 'teacher') as UserRole;
   const currentUserName = currentUser?.name || '';
@@ -432,16 +449,16 @@ const ChatSystem: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Apollo Queries
-  const { data: chatsData, refetch: refetchChats } = useQuery(GET_USER_CHATS, {
+  // Apollo Subscription for User Chats
+  const { data: chatsData } = useSubscription(SUBSCRIBE_USER_CHATS, {
     variables: { user_id: currentUserId, user_type: currentUserRole },
     skip: !currentUserId,
-    pollInterval: POLLING_INTERVAL_MS,
   });
 
-  const [getMessages, { data: messagesData }] = useLazyQuery(GET_CHAT_MESSAGES, {
-    fetchPolicy: 'network-only',
-    pollInterval: POLLING_INTERVAL_MS,
+  // Apollo Subscription for Chat Messages
+  const { data: messagesData } = useSubscription(SUBSCRIBE_CHAT_MESSAGES, {
+    variables: { chat_id: selectedChat?.id },
+    skip: !selectedChat?.id,
   });
 
   const [searchParents, { data: searchData, loading: searching }] = useLazyQuery(SEARCH_PARENTS);
@@ -473,8 +490,8 @@ const ChatSystem: React.FC = () => {
   const chats = useMemo(() => {
     if (!chatsData?.chat_participants) return [];
     // Transform all chats from server
-    const transformed = chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId));
-    
+    const transformed = chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId, currentUserName));
+
     // Deduplicate by chat id first
     const seenIds = new Set<number>();
     const dedupedById = transformed.filter((c: Chat) => {
@@ -482,7 +499,7 @@ const ChatSystem: React.FC = () => {
       seenIds.add(c.id);
       return true;
     });
-    
+
     // Further deduplicate by chat name (prevent same parent showing twice)
     const seenNames = new Set<string>();
     const dedupedByName = dedupedById.filter((c: Chat) => {
@@ -491,19 +508,19 @@ const ChatSystem: React.FC = () => {
       seenNames.add(key);
       return true;
     });
-    
+
     // Sort by last message timestamp (most recent first)
     return dedupedByName.sort((a, b) => {
       const ta = a.last_message ? new Date(a.last_message.timestamp).getTime() : 0;
       const tb = b.last_message ? new Date(b.last_message.timestamp).getTime() : 0;
       return tb - ta;
     });
-  }, [chatsData, currentUserId]);
+  }, [chatsData, currentUserId, currentUserName]);
 
   const messages = useMemo(() => {
-    if (!messagesData?.messages) return [];
-    return messagesData.messages.map(transformMessageData);
-  }, [messagesData]);
+    if (!messagesData?.messages || !selectedChat) return [];
+    return messagesData.messages.map((m: any) => transformMessageData(m, selectedChat.participants, currentUserId, currentUserName));
+  }, [messagesData, selectedChat, currentUserId, currentUserName]);
 
   const searchResults = useMemo(() => {
     if (!searchData?.parents) return [];
@@ -537,10 +554,10 @@ const ChatSystem: React.FC = () => {
       });
 
       if (existingData?.chats?.length > 0) {
-        const existingChat = existingData.chats.find((c: any) => 
+        const existingChat = existingData.chats.find((c: any) =>
           c.chat_participants.length > 0
         );
-        
+
         if (existingChat) {
           const chat: Chat = {
             id: existingChat.id,
@@ -550,7 +567,7 @@ const ChatSystem: React.FC = () => {
             unread_count: 0,
           };
           setSelectedChat(chat);
-          getMessages({ variables: { chat_id: existingChat.id } });
+          // getMessages({ variables: { chat_id: existingChat.id } }); // Subscription handles this
           setActiveView('chats');
           setSearchQuery('');
           return;
@@ -586,16 +603,17 @@ const ChatSystem: React.FC = () => {
         };
 
         setSelectedChat(newChat);
-        getMessages({ variables: { chat_id: chatId } });
+        // getMessages({ variables: { chat_id: chatId } }); // Subscription handles this
         setActiveView('chats');
         setSearchQuery('');
-        refetchChats();
+        // refetchChats(); // Subscription handles this
       }
     } catch (error) {
       console.error('Error creating chat:', error);
       alert(ALERT_MESSAGES.CHAT_ERROR);
     }
-  }, [currentUserId, currentUserRole, checkExistingChat, createChatMutation, addParticipantsMutation, getMessages, refetchChats]);
+    // getMessages replaced by subscription
+  }, [currentUserId, currentUserRole, checkExistingChat, createChatMutation, addParticipantsMutation]);
 
   const createGroup = useCallback(async () => {
     if (!groupName.trim() || selectedMembers.length === 0) {
@@ -617,10 +635,10 @@ const ChatSystem: React.FC = () => {
 
         const participants = [
           { chat_id: chatId, user_id: currentUserId, user_type: currentUserRole },
-          ...selectedMembers.map(m => ({ 
-            chat_id: chatId, 
-            user_id: m.id, 
-            user_type: 'parent' 
+          ...selectedMembers.map(m => ({
+            chat_id: chatId,
+            user_id: m.id,
+            user_type: 'parent'
           })),
         ];
 
@@ -631,14 +649,15 @@ const ChatSystem: React.FC = () => {
         setGroupName('');
         setSelectedMembers([]);
         setActiveView('chats');
-        refetchChats();
+        // refetchChats(); // Subscription handles this
         alert(ALERT_MESSAGES.GROUP_SUCCESS);
       }
     } catch (error) {
       console.error('Error creating group:', error);
       alert(ALERT_MESSAGES.GROUP_ERROR);
     }
-  }, [groupName, selectedMembers, currentUserId, currentUserRole, createChatMutation, addParticipantsMutation, refetchChats]);
+    // refetchChats replaced by subscription
+  }, [groupName, selectedMembers, currentUserId, currentUserRole, createChatMutation, addParticipantsMutation]);
 
   const sendMessage = useCallback(async () => {
     if (!messageInput.trim() || !selectedChat) return;
@@ -657,22 +676,20 @@ const ChatSystem: React.FC = () => {
         },
       });
 
-      await getMessages({ 
-        variables: { chat_id: selectedChat.id },
-        fetchPolicy: 'network-only'
-      });
-      
-      await refetchChats();
+      // Subscription handles updates
+
+      // refetchChats(); // Subscription handles this
     } catch (error) {
       console.error('Error sending message:', error);
       setMessageInput(tempMessage);
       alert(ALERT_MESSAGES.MESSAGE_ERROR);
     }
-  }, [messageInput, selectedChat, currentUserId, currentUserName, currentUserRole, sendMessageMutation, getMessages, refetchChats]);
+    // getMessages and refetchChats replaced by subscription
+  }, [messageInput, selectedChat, currentUserId, currentUserName, currentUserRole, sendMessageMutation]);
 
   const handleChatSelect = useCallback(async (chat: Chat) => {
     setSelectedChat(chat);
-    getMessages({ variables: { chat_id: chat.id } });
+    // getMessages({ variables: { chat_id: chat.id } }); // Subscription handles this
 
     if (chat.unread_count > 0) {
       try {
@@ -682,12 +699,13 @@ const ChatSystem: React.FC = () => {
             user_id: currentUserId,
           },
         });
-        refetchChats();
+        // refetchChats(); // Subscription handles this
       } catch (error) {
         console.error('Error marking messages as read:', error);
       }
     }
-  }, [currentUserId, getMessages, markMessagesReadMutation, refetchChats]);
+    // getMessages and refetchChats replaced by subscription
+  }, [currentUserId, markMessagesReadMutation]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -699,7 +717,7 @@ const ChatSystem: React.FC = () => {
   const toggleMemberSelection = useCallback((parent: User) => {
     setSelectedMembers(prev => {
       const isSelected = prev.some(m => m.id === parent.id);
-      return isSelected 
+      return isSelected
         ? prev.filter(m => m.id !== parent.id)
         : [...prev, parent];
     });
@@ -744,7 +762,7 @@ const ChatSystem: React.FC = () => {
               {isTeacher ? 'Teacher' : 'Parent'}: {currentUserName}
             </p>
           </div>
-          
+
           {isTeacher && (
             <div className="flex gap-2">
               <button
@@ -772,7 +790,7 @@ const ChatSystem: React.FC = () => {
               <EmptyState {...(isTeacher ? EMPTY_STATES.NO_CHATS_TEACHER : EMPTY_STATES.NO_CHATS_PARENT)} />
             ) : (
               <div className="divide-y divide-gray-100">
-                {chats.map((chat:any) => (
+                {chats.map((chat: any) => (
                   <ChatListItem
                     key={chat.id}
                     chat={chat}
@@ -814,7 +832,7 @@ const ChatSystem: React.FC = () => {
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="divide-y divide-gray-100">
-                  {searchResults.map((parent:any) => (
+                  {searchResults.map((parent: any) => (
                     <ParentListItem
                       key={parent.id}
                       parent={parent}
@@ -863,18 +881,17 @@ const ChatSystem: React.FC = () => {
               <button
                 onClick={createGroup}
                 disabled={!groupName.trim() || selectedMembers.length === 0}
-                className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                  groupName.trim() && selectedMembers.length > 0
-                    ? BUTTON_STYLES.secondary
-                    : BUTTON_STYLES.disabled
-                }`}
+                className={`w-full py-3 rounded-lg font-medium transition-colors ${groupName.trim() && selectedMembers.length > 0
+                  ? BUTTON_STYLES.secondary
+                  : BUTTON_STYLES.disabled
+                  }`}
               >
                 Create Group
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className="divide-y divide-gray-100">
-                {availableParents.map((parent:any) => (
+                {availableParents.map((parent: any) => (
                   <GroupMemberItem
                     key={parent.id}
                     parent={parent}
@@ -895,7 +912,7 @@ const ChatSystem: React.FC = () => {
             <ChatHeader chat={selectedChat} isTeacher={isTeacher} onBack={() => setSelectedChat(null)} />
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24 md:pb-0">
-              {messages.map((message:any) => (
+              {messages.map((message: any) => (
                 <MessageBubble
                   key={message.id}
                   message={message}
@@ -905,7 +922,7 @@ const ChatSystem: React.FC = () => {
               ))}
               <div ref={messagesEndRef} />
             </div>
-            
+
             {/* Fixed input on mobile, static on md+ */}
             <div className="bg-white border-t border-gray-200 p-3 fixed bottom-0 left-0 right-0 md:static md:p-4">
               <div className="max-w-7xl mx-auto flex items-end gap-3">
@@ -921,9 +938,8 @@ const ChatSystem: React.FC = () => {
                 <button
                   onClick={sendMessage}
                   disabled={!messageInput.trim()}
-                  className={`p-3 rounded-lg transition-colors ${
-                    messageInput.trim() ? BUTTON_STYLES.primary : BUTTON_STYLES.disabled
-                  }`}
+                  className={`p-3 rounded-lg transition-colors ${messageInput.trim() ? BUTTON_STYLES.primary : BUTTON_STYLES.disabled
+                    }`}
                 >
                   <Send className="w-5 h-5" />
                 </button>
