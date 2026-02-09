@@ -42,10 +42,10 @@ const PUBLIC_OPERATIONS = [
 const authLink = setContext((operation, { headers }) => {
   const token = localStorage.getItem('token');
   const operationName = operation.operationName;
-  
+
   // Check if this is a public operation
   const isPublicOperation = PUBLIC_OPERATIONS.includes(operationName || '');
-  
+
   return {
     headers: {
       ...headers,
