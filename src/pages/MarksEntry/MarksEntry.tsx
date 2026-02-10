@@ -137,8 +137,13 @@ const FormInput = React.memo(({ label, value, onChange, placeholder, disabled, r
 
 const FormSelect = React.memo(({ label, value, onChange, options, disabled, required }: { label: string, value: string, onChange: (v: string) => void, options: readonly string[], disabled?: boolean, required?: boolean }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
-    <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
+    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
+    >
       <option value="">Select {label}</option>
       {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
     </select>
@@ -146,20 +151,20 @@ const FormSelect = React.memo(({ label, value, onChange, options, disabled, requ
 ));
 
 // Subject dropdown with "Add New" functionality
-const SubjectSelectWithNew = React.memo(({ 
-  label, 
-  value, 
-  onChange, 
-  subjects, 
-  disabled, 
+const SubjectSelectWithNew = React.memo(({
+  label,
+  value,
+  onChange,
+  subjects,
+  disabled,
   required,
-  onAddNew 
-}: { 
-  label: string, 
-  value: string, 
-  onChange: (v: string) => void, 
+  onAddNew
+}: {
+  label: string,
+  value: string,
+  onChange: (v: string) => void,
   subjects: Subject[],
-  disabled?: boolean, 
+  disabled?: boolean,
   required?: boolean,
   onAddNew: (name: string) => void
 }) => {
@@ -196,14 +201,14 @@ const SubjectSelectWithNew = React.memo(({
       </label>
       {!showAddNew ? (
         <div className="flex gap-2">
-          <select 
-            value={value} 
+          <select
+            value={value}
             onChange={(e) => {
               onChange(e.target.value);
               setSimilarSuggestion(undefined);
-            }} 
-            disabled={disabled} 
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            }}
+            disabled={disabled}
+            className="flex-1 px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
           >
             <option value="">Select Subject</option>
             {subjects.map(subject => (
@@ -300,7 +305,7 @@ const StudentRow = React.memo(({ student, index, markData, maxMarks, onMarksChan
 
 const MarksEntrySystem: React.FC = () => {
   const { user: currentUser } = useAuth();
-  
+
   const teacherId = parseTeacherId(currentUser?.id?.toString());
   const teacherName = currentUser?.name;
 
@@ -324,7 +329,7 @@ const MarksEntrySystem: React.FC = () => {
 
   const [createSubject] = useMutation<SubjectMutationData>(GET_OR_CREATE_SUBJECT);
   const [createExam] = useMutation<ExamMutationData>(GET_OR_CREATE_EXAM);
-  
+
   const [getSubjects] = useLazyQuery<FetchSubjectsData>(GET_ALL_SUBJECTS, {
     onCompleted: useCallback((data: FetchSubjectsData) => {
       setAvailableSubjects(data?.subjects || []);
@@ -346,13 +351,13 @@ const MarksEntrySystem: React.FC = () => {
       setDuplicateTestWarning('');
     }, []),
   });
-  
+
   const [checkExistingMarks] = useLazyQuery(CHECK_EXISTING_MARKS, {
     onCompleted: useCallback((data: any) => {
       if (data?.marks?.length > 0) {
         const existingMap: Record<number, any> = {};
         const updatedMarksData: Record<number, MarkEntry> = { ...marksData };
-        
+
         data.marks.forEach((mark: any) => {
           existingMap[mark.student_id] = mark;
           updatedMarksData[mark.student_id] = {
@@ -362,7 +367,7 @@ const MarksEntrySystem: React.FC = () => {
             remarks: mark.remarks || '',
           };
         });
-        
+
         setExistingMarksMap(existingMap);
         setMarksData(updatedMarksData);
         setIsEditMode(true);
@@ -405,11 +410,11 @@ const MarksEntrySystem: React.FC = () => {
     onCompleted: useCallback((data: InsertMarksData) => {
       if (data?.insert_marks?.affected_rows > 0) {
         setSaveStatus('success');
-        const message = isEditMode 
-          ? `✅ ${data.insert_marks.affected_rows} mark(s) updated successfully!` 
+        const message = isEditMode
+          ? `✅ ${data.insert_marks.affected_rows} mark(s) updated successfully!`
           : `✅ Marks saved successfully!`;
         setErrorMessage(message);
-        
+
         const newSavedIds = new Set(savedStudentIds);
         Object.keys(marksData).forEach(key => {
           const studentId = parseInt(key);
@@ -418,7 +423,7 @@ const MarksEntrySystem: React.FC = () => {
           }
         });
         setSavedStudentIds(newSavedIds);
-        
+
         setTimeout(() => setSaveStatus('idle'), 3000);
       }
     }, [isEditMode, marksData, savedStudentIds]),
@@ -450,12 +455,12 @@ const MarksEntrySystem: React.FC = () => {
   // When students are loaded + we have subject/exam IDs, check for existing marks
   useEffect(() => {
     if (students.length > 0 && currentSubjectId && currentExamId) {
-      checkExistingMarks({ 
-        variables: { 
-          subjectId: currentSubjectId, 
-          examId: currentExamId, 
-          studentIds: students.map(s => s.id) 
-        } 
+      checkExistingMarks({
+        variables: {
+          subjectId: currentSubjectId,
+          examId: currentExamId,
+          studentIds: students.map(s => s.id)
+        }
       });
     }
   }, [students, currentSubjectId, currentExamId]);
@@ -473,12 +478,12 @@ const MarksEntrySystem: React.FC = () => {
   const handleAddNewSubject = async (newSubjectName: string) => {
     if (!teacherId || !className) return;
     try {
-      const result = await createSubject({ 
-        variables: { 
-          name: newSubjectName.trim().toLowerCase(), 
-          className: className.trim(), 
-          teacherId 
-        } 
+      const result = await createSubject({
+        variables: {
+          name: newSubjectName.trim().toLowerCase(),
+          className: className.trim(),
+          teacherId
+        }
       });
       if (result.data?.insert_subjects_one?.id) {
         setSubjectName(newSubjectName.trim().toLowerCase());
@@ -495,19 +500,19 @@ const MarksEntrySystem: React.FC = () => {
   const handleFetchStudents = async () => {
     if (!teacherId || !className || !sectionName) return setErrorMessage(ERROR_MESSAGES.CLASS_SECTION_REQUIRED);
     if (!subjectName || !examName) return setErrorMessage(ERROR_MESSAGES.ALL_FIELDS_REQUIRED);
-    
+
     try {
       const subRes = await createSubject({ variables: { name: subjectName.trim().toLowerCase(), className: className.trim(), teacherId } });
       const exRes = await createExam({ variables: { name: examName.trim(), academicYear: academicYear.trim() || getCurrentYear() } });
-      
+
       const subjectId = subRes.data?.insert_subjects_one.id;
       const examId = exRes.data?.insert_exams_one.id;
-      
+
       if (subjectId && examId) {
         setCurrentSubjectId(subjectId);
         setCurrentExamId(examId);
       }
-      
+
       fetchStudents({ variables: { className: className.trim(), sectionName: sectionName.trim() } });
     } catch (err) {
       const error = err as Error;
@@ -523,7 +528,7 @@ const MarksEntrySystem: React.FC = () => {
     try {
       const subRes = await createSubject({ variables: { name: subjectName.trim().toLowerCase(), className: className.trim(), teacherId } });
       const exRes = await createExam({ variables: { name: examName.trim(), academicYear: academicYear.trim() || getCurrentYear() } });
-      
+
       const subjectId = subRes.data?.insert_subjects_one.id;
       const examId = exRes.data?.insert_exams_one.id;
 
@@ -566,13 +571,13 @@ const MarksEntrySystem: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <FormInput label="Class" value={className} onChange={setClassName} placeholder={PLACEHOLDERS.CLASS} required />
             <FormInput label="Section" value={sectionName} onChange={setSectionName} placeholder={PLACEHOLDERS.SECTION} required />
-            <SubjectSelectWithNew 
-              label="Subject" 
-              value={subjectName} 
-              onChange={setSubjectName} 
+            <SubjectSelectWithNew
+              label="Subject"
+              value={subjectName}
+              onChange={setSubjectName}
               subjects={availableSubjects}
               onAddNew={handleAddNewSubject}
-              required 
+              required
             />
             <FormSelect label="Test Type" value={testType} onChange={setTestType} options={TEST_TYPES} required />
             <FormInput label="Academic Year" value={academicYear} onChange={setAcademicYear} placeholder={PLACEHOLDERS.ACADEMIC_YEAR} />

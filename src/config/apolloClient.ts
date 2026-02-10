@@ -1,8 +1,9 @@
 // src/config/apolloClient.ts
-import { ApolloClient, InMemoryCache, createHttpLink, split, ApolloLink } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, split, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
+import { onError } from '@apollo/client/link/error';
 import { createClient } from 'graphql-ws';
 
 // HTTP connection to Hasura
@@ -38,6 +39,35 @@ const PUBLIC_OPERATIONS = [
   'InsertAdmin',
 ];
 
+// Error link - handles unauthorized redirects (session loss/tampering)
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  if (graphQLErrors) {
+    for (const err of graphQLErrors) {
+      const code = err.extensions?.code;
+      // Handle the access-denied or invalid-jwt codes from Hasura
+      if (code === 'access-denied' || code === 'invalid-jwt' || code === 'unauthorized') {
+        console.warn('[Apollo Error] Unauthorized - clearing session');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // Force redirect if not on public page
+        const path = window.location.pathname.toLowerCase();
+        const isPublic = path === '/' || path === '/login' || path === '/signup';
+        if (!isPublic) {
+          window.location.href = '/login';
+        }
+      }
+    }
+  }
+
+  if (networkError && 'statusCode' in networkError) {
+    if ((networkError as any).statusCode === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+  }
+});
+
 // Auth link - adds JWT token only for protected operations, or anonymous role for public operations
 const authLink = setContext((operation, { headers }) => {
   const token = localStorage.getItem('token');
@@ -49,7 +79,7 @@ const authLink = setContext((operation, { headers }) => {
   return {
     headers: {
       ...headers,
-      // For public operations, send anonymous role
+     
       ...(isPublicOperation && { 'x-hasura-role': 'anonymous' }),
       // For protected operations, send JWT token
       ...(token && !isPublicOperation && { authorization: `Bearer ${token}` }),
@@ -69,7 +99,8 @@ const splitLink = split(
     );
   },
   wsLink,
-  authLink.concat(httpLink)
+  // Chain authLink and errorLink before httpLink
+  from([authLink, errorLink, httpLink])
 );
 
 // Create Apollo Client

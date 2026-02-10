@@ -181,28 +181,28 @@ const MarksReview: React.FC = () => {
               placeholder="Class (e.g., 10)"
               value={className}
               onChange={(e) => setClassName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             />
             <input
               type="text"
               placeholder="Section (e.g., A)"
               value={sectionName}
               onChange={(e) => setSectionName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             />
             <input
               type="text"
               placeholder="Exam (e.g., FA1)"
               value={examName}
               onChange={(e) => setExamName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             />
             <input
               type="text"
               placeholder="Subject"
               value={subjectName}
               onChange={(e) => setSubjectName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             />
           </div>
 
@@ -289,9 +289,8 @@ const MarksReview: React.FC = () => {
                               onChange={(e) => handleCellChange(student.id, e.target.value)}
                               onFocus={() => setEditingCell(`${student.id}`)}
                               onBlur={() => setEditingCell(null)}
-                              className={`w-20 px-2 py-1 border rounded ${
-                                editingCell === `${student.id}` ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
-                              } focus:outline-none`}
+                              className={`w-20 px-2 py-1 border rounded ${editingCell === `${student.id}` ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+                                } focus:outline-none`}
                             />
                           </td>
                           <td className="px-4 py-3">

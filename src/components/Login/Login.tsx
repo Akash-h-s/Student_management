@@ -272,7 +272,7 @@ function Login() {
             <select
               value={role}
               onChange={(e) => handleRoleChange(e.target.value as Role)}
-              className="w-full p-2 sm:p-3 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2 sm:p-3 text-sm sm:text-base border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
             >
               {ROLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
