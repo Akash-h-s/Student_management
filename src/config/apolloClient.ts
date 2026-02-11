@@ -20,7 +20,6 @@ const wsLink = new GraphQLWsLink(
       return {
         headers: {
           ...(token && { authorization: `Bearer ${token}` }),
-          ...(!token && { 'x-hasura-role': 'anonymous' }),
         },
       };
     },
@@ -37,6 +36,7 @@ const PUBLIC_OPERATIONS = [
   'GetParentByEmail',
   'GetStudentByEmail',
   'InsertAdmin',
+  'GetDashboardStats',
 ];
 
 // Error link - handles unauthorized redirects (session loss/tampering)
@@ -79,8 +79,6 @@ const authLink = setContext((operation, { headers }) => {
   return {
     headers: {
       ...headers,
-     
-      ...(isPublicOperation && { 'x-hasura-role': 'anonymous' }),
       // For protected operations, send JWT token
       ...(token && !isPublicOperation && { authorization: `Bearer ${token}` }),
       // For authenticated operations without token, still send user role if available

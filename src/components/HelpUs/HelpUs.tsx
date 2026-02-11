@@ -34,14 +34,14 @@ interface HelpUsProps {
 const DEFAULT_GUIDES: Guide[] = [
   {
     id: 1,
-    title: "Admin Guide Made Simple",
+    title: "Admin: Institutional Control",
     description:
-      "Register your institution and manage teachers, students, and parents efficiently with complete control and visibility.",
+      "Take full command of your institution's data. Use the Bulk Upload portal to onboard students and teachers in seconds using Excel or PDF files.",
     steps: [
-      "Register your admin account.",
-      "Set up school details and departments.",
-      "Manage user roles and permissions.",
-      "Monitor platform usage and reports.",
+      "Access the Admin Upload portal.",
+      "Select 'Student' or 'Teacher' upload type.",
+      "Upload your Excel/PDF and watch real-time Temporal processing.",
+      "Credentials are automatically emailed to all registered users.",
     ],
     image:
       "https://admin.expatica.com/uk/wp-content/uploads/sites/10/1970/01/secondary-school-uk.jpg",
@@ -50,48 +50,49 @@ const DEFAULT_GUIDES: Guide[] = [
   },
   {
     id: 2,
-    title: "Teacher Guide",
+    title: "Must & Should: Data Rules",
     description:
-      "Teachers can access the platform to manage classes, assignments, and communicate with students and parents seamlessly.",
+      "To ensure zero errors during bulk uploads, your data files must strictly follow these mandatory and optional guidelines.",
     steps: [
-      "Login with your teacher account.",
-      "Set up classes, subjects, and schedules.",
-      "Assign homework and grades.",
-      "Communicate with students and parents directly.",
+      "MUST: Include full name and a unique email for every user.",
+      "MUST: Provide Class and Section for student list uploads.",
+      "MUST: Use a valid parent email to link students automatically.",
+      "SHOULD: Include phone numbers for future SMS/WhatsApp alerts.",
+      "FORMAT: Your files should be .xlsx, .xls, or .pdf format only.",
+    ],
+    image: "https://admin.expatica.com/uk/wp-content/uploads/sites/10/1970/01/secondary-school-uk.jpg",
+    imageAlt: "Admin reviewing data requirements",
+    bgColor: "bg-red-500",
+  },
+  {
+    id: 3,
+    title: "Teacher: Academic Management",
+    description:
+      "Simplify your classroom administration. Enter marks, manage subjects, and stay connected with your students through built-in messaging.",
+    steps: [
+      "Enter and manage student marks for your assigned subjects.",
+      "Communicate directly with students through the secure chat.",
+      "Create and manage student groups for collaborative learning.",
+      "View your class performance through intuitive data grids.",
     ],
     image: "https://c.stocksy.com/a/u5DA00/z9/2433618.jpg",
     imageAlt: "Teacher in classroom",
     bgColor: "bg-purple-500",
   },
   {
-    id: 3,
-    title: "Student Guide",
+    id: 4,
+    title: "Student & Parent: Progress Tracking",
     description:
-      "Students can access their classes, assignments, and track their academic progress in a simple and intuitive way.",
+      "Stay informed and engaged. Students can track their academic growth, while parents get real-time visibility into their child's performance.",
     steps: [
-      "Login with your student account.",
-      "Access courses, assignments, and grades.",
-      "Track attendance and performance reports.",
-      "Communicate with teachers and classmates.",
+      "View live marks and download progress cards instantly.",
+      "Students can chat with teachers to clarify doubts.",
+      "Parents receive instant updates on children's academic status.",
+      "Access school-wide announcements through the global dashboard.",
     ],
     image:
       "https://epe.brightspotcdn.com/53/66/b17323e84e668e02e25d5b4a7a93/teacher-students-classroom.jpg",
     imageAlt: "Students learning in classroom",
-    bgColor: "bg-green-400",
-  },
-  {
-    id: 4,
-    title: "Parent Guide",
-    description:
-      "Parents can track their child's progress, attendance, and receive real-time notifications from teachers and the school.",
-    steps: [
-      "Create a parent account.",
-      "Link your child's profile.",
-      "Monitor attendance, grades, and assignments.",
-      "Receive notifications and announcements.",
-    ],
-    image: "https://c.stocksy.com/a/u5DA00/z9/2433618.jpg",
-    imageAlt: "Parent reviewing child's progress",
     bgColor: "bg-blue-400",
   },
 ];
@@ -122,14 +123,14 @@ const GuideContent = ({ title, description, steps, bgColor }: GuideContentProps)
 const GuideCard = ({ guide, isImageLeft }: GuideCardProps) => (
   <div className="flex flex-col md:flex-row mb-8 sm:mb-10 justify-between rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg sm:shadow-xl">
     {isImageLeft && <GuideImage src={guide.image} alt={guide.imageAlt} />}
-    
+
     <GuideContent
       title={guide.title}
       description={guide.description}
       steps={guide.steps}
       bgColor={guide.bgColor}
     />
-    
+
     {!isImageLeft && <GuideImage src={guide.image} alt={guide.imageAlt} />}
   </div>
 );
@@ -143,10 +144,10 @@ const HelpUs = ({ guides = DEFAULT_GUIDES }: HelpUsProps) => {
           const isImageLeft = index % 2 !== 0;
 
           return (
-            <GuideCard 
-              key={guide.id} 
-              guide={guide} 
-              isImageLeft={isImageLeft} 
+            <GuideCard
+              key={guide.id}
+              guide={guide}
+              isImageLeft={isImageLeft}
             />
           );
         })}
