@@ -39,7 +39,12 @@ export const GET_USER_CHATS = gql`
         messages_aggregate(
           where: { 
             is_read: { _eq: false }
-            sender_id: { _neq: $user_id }
+            _not: {
+              _and: [
+                { sender_id: { _eq: $user_id } }
+                { sender_type: { _eq: $user_type } }
+              ]
+            }
           }
         ) {
           aggregate {
@@ -106,7 +111,12 @@ export const SUBSCRIBE_USER_CHATS = gql`
         messages_aggregate(
           where: { 
             is_read: { _eq: false }
-            sender_id: { _neq: $user_id }
+            _not: {
+              _and: [
+                { sender_id: { _eq: $user_id } }
+                { sender_type: { _eq: $user_type } }
+              ]
+            }
           }
         ) {
           aggregate {
@@ -244,12 +254,17 @@ export const SEND_MESSAGE = gql`
 
 // Mark messages as read
 export const MARK_MESSAGES_READ = gql`
-  mutation MarkMessagesRead($chat_id: Int!, $user_id: Int!) {
+  mutation MarkMessagesRead($chat_id: Int!, $user_id: Int!, $user_type: String!) {
     update_messages(
       where: {
         chat_id: { _eq: $chat_id }
-        sender_id: { _neq: $user_id }
         is_read: { _eq: false }
+        _not: {
+          _and: [
+            { sender_id: { _eq: $user_id } }
+            { sender_type: { _eq: $user_type } }
+          ]
+        }
       }
       _set: { is_read: true }
     ) {

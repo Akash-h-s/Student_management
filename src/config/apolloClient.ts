@@ -109,12 +109,12 @@ export const apolloClient = new ApolloClient({
       Query: {
         fields: {
           chats: {
-            merge(existing, incoming) {
+            merge(_existing, incoming) {
               return incoming;
             },
           },
           messages: {
-            merge(existing, incoming) {
+            merge(_existing, incoming) {
               return incoming;
             },
           },

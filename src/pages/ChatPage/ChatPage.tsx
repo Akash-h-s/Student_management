@@ -173,7 +173,7 @@ const transformChatData = (cp: any, currentUserId: number, currentUserName: stri
       };
     });
 
-  let chatName = chat.name;
+  let chatName = chat.name || 'Unknown';
   if (chat.type === 'direct' && participants.length > 0) {
     chatName = participants[0].name;
   }
@@ -182,7 +182,7 @@ const transformChatData = (cp: any, currentUserId: number, currentUserName: stri
   const lastMsg = chat.messages[0];
   let lastMsgSenderName = 'Unknown';
   if (lastMsg) {
-    if (lastMsg.sender_id === currentUserId) {
+    if (lastMsg.sender_id === currentUserId && lastMsg.sender_type === currentUserRole) {
       lastMsgSenderName = currentUserName;
     } else {
       const sender = participants.find((p: any) => p.id === lastMsg.sender_id && p.role === lastMsg.sender_type);
@@ -208,9 +208,9 @@ const transformChatData = (cp: any, currentUserId: number, currentUserName: stri
   };
 };
 
-const transformMessageData = (m: any, chatParticipants: User[], currentUserId: number, currentUserName: string): Message => {
+const transformMessageData = (m: any, chatParticipants: User[], currentUserId: number, currentUserName: string, currentUserRole: string): Message => {
   let senderName = 'Unknown';
-  if (m.sender_id === currentUserId) {
+  if (m.sender_id === currentUserId && m.sender_type === currentUserRole) {
     senderName = currentUserName;
   } else {
     const sender = chatParticipants.find(p => p.id === m.sender_id && p.role === m.sender_type);
@@ -262,36 +262,39 @@ interface ChatListItemProps {
 const ChatListItem = React.memo(({ chat, isSelected, currentUserId, onSelect }: ChatListItemProps) => (
   <button
     onClick={() => onSelect(chat)}
-    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${isSelected ? 'bg-indigo-50' : ''
+    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${isSelected ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'
       }`}
   >
-    <div className="flex items-start gap-3">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${CHAT_COLORS[chat.type]
-        }`}>
-        {chat.type === 'group' ? <Users className="w-6 h-6" /> : getInitials(chat.name || 'Unknown')}
+    <div className="flex items-center gap-3">
+      <div className={`w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-semibold ${CHAT_COLORS[chat.type]}`}>
+        {chat.type === 'group' ? <Users className="w-6 h-6" /> : getInitials(chat.name)}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-gray-900 truncate">{chat.name}</h3>
+        <div className="flex items-center justify-between mb-0.5">
+          <h3 className="font-semibold text-gray-900 truncate text-base">{chat.name}</h3>
           {chat.last_message && (
-            <span className="text-xs text-gray-500 ml-2">
+            <span className={`text-xs whitespace-nowrap ${chat.unread_count > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
               {formatTime(chat.last_message.timestamp)}
             </span>
           )}
         </div>
-        {chat.last_message && (
-          <p className="text-sm text-gray-600 truncate">
-            {chat.last_message.sender_id === currentUserId ? 'You: ' : ''}
-            {chat.last_message.content}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600 truncate pr-2">
+            {chat.last_message ? (
+              <>
+                {chat.last_message.sender_id === currentUserId && <span className="text-gray-400">You: </span>}
+                {chat.last_message.content}
+              </>
+            ) : (
+              <span className="italic text-gray-400">No messages yet</span>
+            )}
           </p>
-        )}
-        {chat.unread_count > 0 && (
-          <div className="mt-1">
-            <span className="inline-block px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
+          {chat.unread_count > 0 && (
+            <span className="flex-shrink-0 flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 bg-green-500 text-white text-xs font-bold rounded-full">
               {chat.unread_count}
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   </button>
@@ -310,7 +313,7 @@ const ParentListItem = React.memo(({ parent, onSelect }: ParentListItemProps) =>
   >
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-semibold">
-        {getInitials(parent.name || 'Unknown')}
+        {getInitials(parent.name)}
       </div>
       <div>
         <h3 className="font-medium text-gray-900">{parent.name}</h3>
@@ -513,7 +516,7 @@ const ChatSystem: React.FC = () => {
     });
 
     // Sort by last message timestamp (most recent first)
-    return dedupedByName.sort((a: any, b: any) => {
+    return dedupedByName.sort((a: Chat, b: Chat) => {
       const ta = a.last_message ? new Date(a.last_message.timestamp).getTime() : 0;
       const tb = b.last_message ? new Date(b.last_message.timestamp).getTime() : 0;
       return tb - ta;
@@ -522,8 +525,8 @@ const ChatSystem: React.FC = () => {
 
   const messages = useMemo(() => {
     if (!messagesData?.messages || !selectedChat) return [];
-    return messagesData.messages.map((m: any) => transformMessageData(m, selectedChat.participants, currentUserId, currentUserName));
-  }, [messagesData, selectedChat, currentUserId, currentUserName]);
+    return messagesData.messages.map((m: any) => transformMessageData(m, selectedChat.participants, currentUserId, currentUserName, currentUserRole));
+  }, [messagesData, selectedChat, currentUserId, currentUserName, currentUserRole]);
 
   const searchResults = useMemo(() => {
     if (!searchData?.parents) return [];
@@ -552,7 +555,7 @@ const ChatSystem: React.FC = () => {
           user1_id: currentUserId,
           user1_type: currentUserRole,
           user2_id: parent.id,
-          user2_type: parent.role || 'parent',
+          user2_type: 'parent',
         },
       });
 
@@ -592,8 +595,8 @@ const ChatSystem: React.FC = () => {
           variables: {
             participants: [
               { chat_id: chatId, user_id: currentUserId, user_type: currentUserRole },
-              { chat_id: chatId, user_id: parent.id, user_type: parent.role || 'parent' },
-            ].filter((v, i, a) => a.findIndex(t => t.user_id === v.user_id && t.user_type === v.user_type) === i),
+              { chat_id: chatId, user_id: parent.id, user_type: 'parent' },
+            ],
           },
         });
 
@@ -700,6 +703,7 @@ const ChatSystem: React.FC = () => {
           variables: {
             chat_id: chat.id,
             user_id: currentUserId,
+            user_type: currentUserRole,
           },
         });
         // refetchChats(); // Subscription handles this
@@ -708,7 +712,7 @@ const ChatSystem: React.FC = () => {
       }
     }
     // getMessages and refetchChats replaced by subscription
-  }, [currentUserId, markMessagesReadMutation]);
+  }, [currentUserId, currentUserRole, markMessagesReadMutation]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -919,7 +923,7 @@ const ChatSystem: React.FC = () => {
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isOwn={message.sender_id === currentUserId}
+                  isOwn={message.sender_id === currentUserId && message.sender_type === currentUserRole}
                   isParent={isParent}
                 />
               ))}
