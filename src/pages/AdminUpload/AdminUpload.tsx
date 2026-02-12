@@ -1,6 +1,7 @@
 // src/pages/AdminUpload.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import CustomSelect from '../../components/CustomSelect/CustomSelect';
 
 // ==================== TYPES ====================
 type UploadType = 'student' | 'teacher';
@@ -369,21 +370,15 @@ interface UploadTypeSelectorProps {
 
 const UploadTypeSelector = React.memo(({ value, onChange, disabled }: UploadTypeSelectorProps) => (
   <div className="mb-6">
-    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-      Select Upload Category <span className="text-red-500">*</span>
-    </label>
-    <select
+    <CustomSelect
+      label="Select Upload Category"
       value={value}
-      onChange={(e) => onChange(e.target.value as UploadType | '')}
+      onChange={(v) => onChange(v as UploadType | '')}
+      options={UPLOAD_TYPE_OPTIONS}
       disabled={disabled}
-      className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
-    >
-      {UPLOAD_TYPE_OPTIONS.map(option => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      placeholder="-- Choose Type --"
+      required
+    />
   </div>
 ));
 UploadTypeSelector.displayName = 'UploadTypeSelector';
@@ -408,7 +403,7 @@ const StudentFields = React.memo(({ studentClass, studentSection, onClassChange,
         value={studentClass}
         onChange={(e) => onClassChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
+        className="w-full px-3 py-3 sm:px-4 sm:py-2.5 text-base sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
       />
     </div>
     <div>
@@ -421,7 +416,7 @@ const StudentFields = React.memo(({ studentClass, studentSection, onClassChange,
         value={studentSection}
         onChange={(e) => onSectionChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
+        className="w-full px-3 py-3 sm:px-4 sm:py-2.5 text-base sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
       />
     </div>
   </div>
