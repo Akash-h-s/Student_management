@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@apollo/client";
 import { useAuth } from "../../context/AuthContext";
-import { GET_STUDENT_DETAILS_BY_PARENT } from "../../graphql/studentsandparents";
+import { GET_ADMIN_SCHOOL_DETAILS, GET_STUDENT_DETAILS_BY_PARENT } from "../../graphql/studentsandparents";
 import axios from "axios";
 
 interface Admin {
@@ -43,6 +43,8 @@ interface Student {
   admission_no: string;
   marks: Mark[];
   admin?: Admin;
+  creator_admin?: Admin;
+  created_by_admin_id?: number;
 }
 
 interface MarkscardData {
@@ -172,14 +174,18 @@ const calculateTotalMarks = (marks: Mark[]): { total: number; max: number; perce
 const prepareMarkscardData = (student: Student, marks: Mark[], examName: string): MarkscardData => {
   const { total, max, percentage } = calculateTotalMarks(marks);
 
+  // Use admin for legacy support, or fallback to defaults
+  // Note: Backend service (markscard_generator.py) will fetch correct school details using student's created_by_admin_id
+  const schoolAdmin = student.admin;
+
   return {
     student_name: student.name,
     admission_no: student.admission_no,
     exam_name: examName,
-    school_name: student.admin?.school_name || DEFAULT_SCHOOL_NAME,
-    school_address: student.admin?.school_address || '',
-    school_phone: student.admin?.school_phone || '',
-    school_logo_url: student.admin?.school_logo_url || '',
+    school_name: schoolAdmin?.school_name || DEFAULT_SCHOOL_NAME,
+    school_address: schoolAdmin?.school_address || '',
+    school_phone: schoolAdmin?.school_phone || '',
+    school_logo_url: schoolAdmin?.school_logo_url || '',
     marks: marks.map((m) => ({
       subject: m.subject.name,
       marks_obtained: m.marks_obtained,
@@ -275,10 +281,18 @@ const GeneratingOverlay = React.memo(({ isGenerating }: GeneratingOverlayProps) 
 GeneratingOverlay.displayName = 'GeneratingOverlay';
 
 interface SchoolInfoProps {
-  admin?: Admin;
+  adminId?: number;
 }
 
-const SchoolInfo = React.memo(({ admin }: SchoolInfoProps) => {
+const SchoolInfo = React.memo(({ adminId }: SchoolInfoProps) => {
+  const { data, loading } = useQuery(GET_ADMIN_SCHOOL_DETAILS, {
+    variables: { adminId },
+    skip: !adminId
+  });
+
+  const admin = data?.admins_by_pk;
+
+  if (loading) return null;
   if (!admin?.school_name) return null;
 
   return (
@@ -415,7 +429,7 @@ const StudentCard = React.memo(({ student, onPrintMarkscard, isGenerating }: Stu
             <p className="text-sm md:text-base text-gray-600">Admission No: {student.admission_no}</p>
           </div>
           <div className="w-full md:w-auto">
-            <SchoolInfo admin={student.admin} />
+            <SchoolInfo adminId={student.created_by_admin_id} />
           </div>
         </div>
       </div>
@@ -462,8 +476,12 @@ export default function StudentDetails() {
 
         const markscardData = prepareMarkscardData(student, marks, examName);
 
+        const token = localStorage.getItem('token');
         const response = await axios.post(`${API_BASE_URL}/generate-markscard`, markscardData, {
           responseType: 'blob',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
         });
 
         const blob = new Blob([response.data], { type: 'application/pdf' });
