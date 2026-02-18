@@ -51,9 +51,9 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
         localStorage.removeItem('user');
 
         // Force redirect if not on public page
-        const path = window.location.pathname.toLowerCase();
-        const isPublic = path === '/' || path === '/login' || path === '/signup';
-        if (!isPublic) {
+        const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+        const publicPaths = ['/', '/login', '/signup', '/about', '/helpus', '/unauthorized'];
+        if (!publicPaths.includes(path)) {
           window.location.href = '/login';
         }
       }
@@ -63,7 +63,11 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   if (networkError && 'statusCode' in networkError) {
     if ((networkError as any).statusCode === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+      const publicPaths = ['/', '/login', '/signup', '/about', '/helpus', '/unauthorized'];
+      if (!publicPaths.includes(path)) {
+        window.location.href = '/login';
+      }
     }
   }
 });
