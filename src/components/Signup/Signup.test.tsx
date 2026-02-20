@@ -3,13 +3,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Signup from './Signup';
-import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
-
-// Mock Auth Context
-vi.mock('../../context/AuthContext', () => ({
-  useAuth: vi.fn(),
-}));
+import * as authSlice from '../../store/slices/authSlice';
 
 // Mock authService
 vi.mock('../../services/authService', () => ({
@@ -28,12 +23,23 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const mockLogin = vi.fn();
+// Mock Redux hooks and actions
+const mockDispatch = vi.fn();
+vi.mock('../../store/hooks', () => ({
+  useAppDispatch: () => mockDispatch
+}));
+
+vi.mock('../../store/slices/authSlice', async () => {
+  const actual = await vi.importActual('../../store/slices/authSlice');
+  return {
+    ...actual,
+    loginUser: vi.fn()
+  };
+});
 
 describe('Signup Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useAuth as any).mockReturnValue({ login: mockLogin });
   });
 
   it('1. should show validation errors for empty fields on submit', async () => {
@@ -47,7 +53,6 @@ describe('Signup Component', () => {
 
     fireEvent.click(screen.getByText('Create Admin Account'));
 
-    // Use findByText to wait for async validation messages
     expect(await screen.findByText('School name is required')).toBeDefined();
     expect(screen.getByText('Please enter a valid email address')).toBeDefined();
   });
@@ -82,7 +87,7 @@ describe('Signup Component', () => {
     expect(schoolInput.value).toBe('Greenwood High');
   });
 
-  it('4. should call authService.signup and redirect on success', async () => {
+  it('4. should call authService.signup and dispatch loginUser on success', async () => {
     // Mock successful signup
     (authService.signup as any).mockResolvedValue({
       success: true,
@@ -94,6 +99,10 @@ describe('Signup Component', () => {
         role: 'admin',
       },
     });
+
+    // Mock loginUser action creator result
+    const loginUserAction = { type: 'LOGIN_USER_MOCK' };
+    (authSlice.loginUser as any).mockReturnValue(loginUserAction);
 
     render(
       <MockedProvider>
@@ -119,15 +128,13 @@ describe('Signup Component', () => {
         password: 'password123',
         phone: '1234567890',
       });
-      // Check for login call
-      expect(mockLogin).toHaveBeenCalledWith(
-        { id: 1, name: 'Test School', email: 'admin@school.com', role: 'admin' },
-        'mock-jwt-token'
-      );
+
+      // Check for dispatch
+      expect(authSlice.loginUser).toHaveBeenCalledWith('mock-jwt-token');
+      expect(mockDispatch).toHaveBeenCalledWith(loginUserAction);
+
       // Check redirect
       expect(mockedNavigate).toHaveBeenCalledWith('/admin/dashboard');
     });
   });
-
-
 });

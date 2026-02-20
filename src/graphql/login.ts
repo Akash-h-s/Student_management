@@ -26,6 +26,7 @@ export const GET_TEACHER_BY_EMAIL = gql`
       phone
       qualification
       is_active
+      created_by_admin_id
       created_at
     }
   }
@@ -40,6 +41,7 @@ export const GET_PARENT_BY_EMAIL = gql`
       password_hash
       phone
       address
+      created_by_admin_id
       created_at
     }
   }

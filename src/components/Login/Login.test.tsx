@@ -1,16 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { MockedProvider } from '@apollo/client/testing';
+import '@testing-library/jest-dom';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '../../store/slices/authSlice';
 import Login from './Login';
-import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
-
-// Mock Auth Context
-const mockLogin = vi.fn();
-vi.mock('../../context/AuthContext', () => ({
-  useAuth: () => ({ login: mockLogin }),
-}));
 
 // Mock authService
 vi.mock('../../services/authService', () => ({
@@ -29,17 +25,52 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mock jwt-decode for integration test
+vi.mock('jwt-decode', () => ({
+  jwtDecode: vi.fn((token) => {
+    if (token === 'mock-jwt-token.part2.part3') {
+      return {
+        id: 101,
+        name: 'John Doe',
+        email: 'john@school.com',
+        role: 'student',
+        exp: Date.now() / 1000 + 3600
+      };
+    }
+    throw new Error('Invalid token');
+  }),
+}));
+
+const createMockStore = () => configureStore({
+  reducer: {
+    auth: authReducer,
+  },
+});
 
 describe('Login Component', () => {
+  let store: ReturnType<typeof createMockStore>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    store = createMockStore();
+    // Spy on dispatch if needed
+    store.dispatch = vi.fn(store.dispatch);
   });
 
+  const renderLogin = () => {
+    return render(
+      <Provider store={store}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </Provider>
+    );
+  };
+
   it('handles successful student login and navigation', async () => {
-    // Mock successful login call
     (authService.login as any).mockResolvedValue({
       success: true,
-      token: 'mock-jwt-token',
+      token: 'mock-jwt-token.part2.part3',
       user: {
         id: 101,
         name: 'John Doe',
@@ -48,24 +79,21 @@ describe('Login Component', () => {
       },
     });
 
-    const { container } = render(
-      <MockedProvider>
-        <MemoryRouter>
-          <Login />
-        </MemoryRouter>
-      </MockedProvider>
-    );
+    renderLogin();
 
-    // 1. Find text inputs by their order in the DOM (Identifier, then Name)
-    const textInputs = container.querySelectorAll('input[type="text"]');
-    fireEvent.change(textInputs[0], { target: { value: 'STU123' } });
-    fireEvent.change(textInputs[1], { target: { value: 'John Doe' } });
+    const roleSelect = screen.getByText('Student'); // Trigger or default
+    expect(roleSelect).toBeInTheDocument();
 
-    // 2. Click submit button (Verify & Enter for student)
-    fireEvent.click(screen.getByText('Verify & Enter'));
+    const inputs = screen.getAllByRole('textbox');
+    // Admission Number (first)
+    fireEvent.change(inputs[0], { target: { value: 'STU123' } });
+    // Student Name (second)
+    fireEvent.change(inputs[1], { target: { value: 'John Doe' } });
+
+    const submitBtn = screen.getByText('Verify & Enter');
+    fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      // Check for authService call with correct params
       expect(authService.login).toHaveBeenCalledWith({
         role: 'student',
         identifier: 'STU123',
@@ -73,48 +101,30 @@ describe('Login Component', () => {
         password: undefined,
       });
 
-      // Check for login context call
-      expect(mockLogin).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 101, role: 'student' }),
-        'mock-jwt-token'
-      );
+      // Check if store state updated
+      const state = store.getState().auth;
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.name).toBe('John Doe');
 
-      // Check navigation
       expect(mockedNavigate).toHaveBeenCalledWith('/student/dashboard');
     });
   });
 
-  it('shows error if admin is not found (login failure)', async () => {
-    // Mock failed login
-    (authService.login as any).mockRejectedValue(new Error('Admin not found with provided credentials'));
+  it('shows error on login failure', async () => {
+    (authService.login as any).mockRejectedValue(new Error('Invalid credentials'));
+    renderLogin();
 
-    const { container } = render(
-      <MockedProvider>
-        <MemoryRouter>
-          <Login />
-        </MemoryRouter>
-      </MockedProvider>
-    );
+    const inputs = screen.getAllByRole('textbox');
+    fireEvent.change(inputs[0], { target: { value: 'STU123' } });
+    fireEvent.change(inputs[1], { target: { value: 'John Doe' } });
 
-    // 1. Switch Role to Admin
-    // Click the CustomSelect trigger button
-    const selectTrigger = screen.getByText('Student');
-    fireEvent.click(selectTrigger);
+    const submitBtn = screen.getByText('Verify & Enter');
+    fireEvent.click(submitBtn);
 
-    // Click the Admin option
-    const adminOption = screen.getByText('Admin');
-    fireEvent.click(adminOption);
-
-    // 2. Find Email input (type="email") and Password input (type="password")
-    const emailInput = container.querySelector('input[type="email"]');
-    const passwordInput = container.querySelector('input[type="password"]');
-
-    if (emailInput) fireEvent.change(emailInput, { target: { value: 'admin@school.com' } });
-    if (passwordInput) fireEvent.change(passwordInput, { target: { value: 'password123' } });
-
-    // 3. Submit (Sign In for admin)
-    fireEvent.click(screen.getByText('Sign In'));
-
-
+    await waitFor(() => {
+      expect(screen.getByText(/Login failed: Invalid credentials/i)).toBeInTheDocument();
+      const state = store.getState().auth;
+      expect(state.isAuthenticated).toBe(false);
+    });
   });
 });

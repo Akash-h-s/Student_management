@@ -12,8 +12,8 @@ const meta: Meta<typeof Signup> = {
     (Story) => (
       <MockedProvider>
         <BrowserRouter>
-          <AuthContext.Provider value={{ login: () => {} } as any}>
-            <Story />
+          <AuthContext.Provider value={{ login: () => { } } as any}>
+            {Story()}
           </AuthContext.Provider>
         </BrowserRouter>
       </MockedProvider>

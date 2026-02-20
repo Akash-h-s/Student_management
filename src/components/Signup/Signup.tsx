@@ -1,103 +1,16 @@
 import React, { useState } from 'react';
 import { useLazyQuery } from '@apollo/client';
-import { Link, useNavigate } from 'react-router-dom';
-
-import { useAuth } from '../../context/AuthContext';
-import { Building2, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react'
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../store/hooks';
+import { loginUser } from '../../store/slices/authSlice';
 import { CHECK_ADMIN_EMAIL } from '../../graphql/signup';
 import { authService } from '../../services/authService';
-
-
-interface FormData {
-  schoolName: string;
-  email: string;
-  password: string;
-  phone: string;
-}
-
-interface FormErrors {
-  [key: string]: string;
-}
-
-interface FormFieldConfig {
-  name: keyof FormData;
-  label: string;
-  type: string;
-  placeholder: string;
-  icon: LucideIcon;
-}
-
-interface InputFieldProps {
-  config: FormFieldConfig;
-  value: string;
-  error?: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-// Constants
-const INITIAL_FORM_STATE: FormData = {
-  schoolName: '',
-  email: '',
-  password: '',
-  phone: '',
-};
-
-const FORM_FIELDS: FormFieldConfig[] = [
-  {
-    name: 'schoolName',
-    label: 'School Name',
-    type: 'text',
-    placeholder: 'Enter school name',
-    icon: Building2,
-  },
-  {
-    name: 'email',
-    label: 'Email Address',
-    type: 'email',
-    placeholder: 'admin@school.com',
-    icon: Mail,
-  },
-  {
-    name: 'password',
-    label: 'Password',
-    type: 'password',
-    placeholder: 'Min. 8 chars, alphanumeric',
-    icon: Lock,
-  },
-  {
-    name: 'phone',
-    label: 'Phone Number',
-    type: 'tel',
-    placeholder: 'Enter phone number',
-    icon: Phone,
-  },
-];
-
-const VALIDATION_RULES = {
-  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  password: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/,
-  minPhoneLength: 10,
-};
-
-const ERROR_MESSAGES = {
-  schoolName: 'School name is required',
-  email: 'Please enter a valid email address',
-  emailExists: 'Email already registered',
-  password: 'Password must be at least 8 characters with letters and numbers',
-  phone: 'Please enter a valid phone number',
-  signupFailed: (message: string) => `Signup failed: ${message}`,
-};
-
-const SUCCESS_MESSAGES = {
-  signupSuccess: 'Signup successful!',
-};
-
-const ROUTES = {
-  login: '/login',
-  adminDashboard: '/admin/dashboard',
-};
-
+import { SignupHeader } from './atoms/SignupHeader';
+import { SignupInput } from './atoms/SignupInput';
+import { SignupButton } from './atoms/SignupButton';
+import { LoginRedirect } from './atoms/LoginRedirect';
+import { FORM_FIELDS, INITIAL_FORM_STATE, VALIDATION_RULES, ERROR_MESSAGES, SUCCESS_MESSAGES, ROUTES } from './constants';
+import type{ FormData, FormErrors } from './types';
 
 const validateForm = (form: FormData): FormErrors => {
   const errors: FormErrors = {};
@@ -121,88 +34,9 @@ const validateForm = (form: FormData): FormErrors => {
   return errors;
 };
 
-// Reusable Components
-const Header = () => (
-  <div className="text-center mb-6 sm:mb-8">
-    <div className="w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-      <Building2 className="w-6 sm:w-7 md:w-8 h-6 sm:h-7 md:h-8 text-white" />
-    </div>
-    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Registration</h2>
-    <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2">Create your school's admin account</p>
-  </div>
-);
-
-const ErrorMessage = ({ message }: { message: string }) => (
-  <div className="flex items-center gap-1 mt-1 text-red-600 text-xs sm:text-sm">
-    <AlertCircle className="w-3 sm:w-4 h-3 sm:h-4 flex-shrink-0" />
-    <span>{message}</span>
-  </div>
-);
-
-const InputField = ({ config, value, error, onChange }: InputFieldProps) => {
-  const Icon = config.icon;
-
-  return (
-    <div>
-      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-        {config.label} <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
-        <input
-          type={config.type}
-          name={config.name}
-          placeholder={config.placeholder}
-          value={value}
-          onChange={onChange}
-          className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 text-sm border rounded-lg focus:outline-none focus:ring-2 ${error
-            ? 'border-red-300 focus:ring-red-500'
-            : 'border-gray-300 focus:ring-blue-500'
-            }`}
-        />
-      </div>
-      {error && <ErrorMessage message={error} />}
-    </div>
-  );
-};
-
-const LoadingSpinner = () => (
-  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-);
-
-const SubmitButton = ({ loading }: { loading: boolean }) => (
-  <button
-    type="submit"
-    disabled={loading}
-    className={`w-full py-2 sm:py-3 text-sm sm:text-base rounded-lg font-semibold text-white transition-all ${loading
-      ? 'bg-gray-400 cursor-not-allowed'
-      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
-      }`}
-  >
-    {loading ? (
-      <span className="flex items-center justify-center gap-2">
-        <LoadingSpinner />
-        Creating Account...
-      </span>
-    ) : (
-      'Create Admin Account'
-    )}
-  </button>
-);
-
-const LoginLink = () => (
-  <p className="text-center mt-4 sm:mt-6 text-xs sm:text-sm text-gray-600">
-    Already have an account?{' '}
-    <Link to={ROUTES.login} className="text-blue-600 hover:underline font-medium">
-      Login here
-    </Link>
-  </p>
-);
-
-
 export default function Signup() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const dispatch = useAppDispatch();
 
   const [form, setForm] = useState<FormData>(INITIAL_FORM_STATE);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -252,16 +86,8 @@ export default function Signup() {
       });
 
       if (response.success && response.token && response.user) {
-        const user = {
-          id: parseInt(response.user.id.toString(), 10),
-          name: response.user.name,
-          email: response.user.email,
-          role: 'admin' as const,
-        };
-
-        login(user, response.token);
-
-
+        // Dispatch login action
+        dispatch(loginUser(response.token));
 
         alert(SUCCESS_MESSAGES.signupSuccess);
         navigate(ROUTES.adminDashboard);
@@ -277,11 +103,11 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
       <div className="w-full max-w-xs sm:max-w-md bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-xl p-5 sm:p-6 md:p-8">
-        <Header />
+        <SignupHeader />
 
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 md:space-y-5">
           {FORM_FIELDS.map((config) => (
-            <InputField
+            <SignupInput
               key={config.name}
               config={config}
               value={form[config.name]}
@@ -290,10 +116,10 @@ export default function Signup() {
             />
           ))}
 
-          <SubmitButton loading={loading} />
+          <SignupButton loading={loading} />
         </form>
 
-        <LoginLink />
+        <LoginRedirect />
       </div>
     </div>
   );

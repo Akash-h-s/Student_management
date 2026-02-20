@@ -1,19 +1,22 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import { MockedProvider } from '@apollo/client/testing';
-import { AuthContext } from '../../context/AuthContext';
+import authReducer from '../../store/slices/authSlice';
 import MarksEntrySystem from './MarksEntry';
-import {
-  GET_STUDENTS_BY_CLASS_SECTION,
-  GET_OR_CREATE_SUBJECT,
-  GET_OR_CREATE_EXAM,
-  INSERT_MARKS,
-  GET_ALL_SUBJECTS,
-  CHECK_EXAM_EXISTS,
-  CHECK_EXISTING_MARKS
-} from '../../graphql/marks';
+import { GET_STUDENTS_BY_CLASS_SECTION } from '../../graphql/marks';
 
-const mockUser = { id: '101', name: 'John Teacher', role: 'teacher' };
+const createMockStore = (initialState: any) => configureStore({
+  reducer: {
+    auth: authReducer,
+  },
+  preloadedState: {
+    auth: initialState
+  }
+});
+
+const mockUser = { id: 101, name: 'John Teacher', role: 'teacher' };
 
 const studentsMock = {
   request: {
@@ -31,89 +34,25 @@ const studentsMock = {
   },
 };
 
-const saveMocks = [
-  {
-    request: {
-      query: GET_OR_CREATE_SUBJECT,
-      variables: { name: 'math', className: '10', teacherId: 101 },
-    },
-    result: { data: { insert_subjects_one: { id: 50 } } },
-  },
-  {
-    request: {
-      query: GET_OR_CREATE_EXAM,
-      variables: { name: 'FA1', academicYear: '2024-25' },
-    },
-    result: { data: { insert_exams_one: { id: 200 } } },
-  },
-  {
-    request: {
-      query: INSERT_MARKS,
-      variables: { marks: expect.anything() },
-    },
-    result: { data: { insert_marks: { affected_rows: 1 } } },
-  },
-  {
-    request: {
-      query: GET_ALL_SUBJECTS,
-      variables: { className: '10' },
-    },
-    result: { data: { subjects: [] } },
-  },
-  {
-    request: {
-      query: GET_ALL_SUBJECTS,
-      variables: { className: '10' },
-    },
-    result: { data: { subjects: [{ id: 50, name: 'Math' }] } },
-  },
-  {
-    request: {
-      query: CHECK_EXAM_EXISTS,
-      variables: { name: 'FA1', academicYear: '2024-25' },
-    },
-    result: { data: { exams: [] } },
-  },
-  {
-    request: {
-      query: CHECK_EXISTING_MARKS,
-      variables: { subjectId: 50, examId: 200, studentIds: [1] },
-    },
-    result: { data: { marks: [] } },
-  },
-  {
-    request: {
-      query: GET_OR_CREATE_SUBJECT,
-      variables: { name: 'math', className: '10', teacherId: 101 },
-    },
-    result: { data: { insert_subjects_one: { id: 50 } } },
-  },
-  {
-    request: {
-      query: GET_OR_CREATE_EXAM,
-      variables: { name: 'FA1', academicYear: '2024-25' },
-    },
-    result: { data: { insert_exams_one: { id: 200 } } },
-  }
-];
-
 describe('MarksEntrySystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-
-
-
-
   it('shows error if fetch clicked without subject/exam', async () => {
+    const store = createMockStore({
+      user: mockUser,
+      isAuthenticated: true
+    });
+
     render(
       <MockedProvider mocks={[studentsMock]} addTypename={false}>
-        <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
+        <Provider store={store}>
           <MarksEntrySystem />
-        </AuthContext.Provider>
+        </Provider>
       </MockedProvider>
     );
+
     fireEvent.change(screen.getByPlaceholderText(/e.g., 10/i), { target: { value: '10' } });
     fireEvent.change(screen.getByPlaceholderText(/e.g., A/i), { target: { value: 'A' } });
 

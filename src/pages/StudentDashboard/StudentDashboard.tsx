@@ -1,7 +1,7 @@
 // src/pages/StudentDashboard.tsx
 import React, { useMemo } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { useAuth } from '../../context/AuthContext';
+import { useAppSelector } from '../../store/hooks';
 
 // ==================== TYPES ====================
 interface Mark {
@@ -200,7 +200,7 @@ AcademicPerformanceCard.displayName = 'AcademicPerformanceCard';
 
 // ==================== MAIN COMPONENT ====================
 const StudentDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const user = useAppSelector((state) => state.auth.user);
   const studentId = useMemo(() => parseStudentId(user?.id), [user?.id]);
 
   const { data, loading, error } = useQuery(GET_STUDENT_DETAILS, {

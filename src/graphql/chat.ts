@@ -39,12 +39,7 @@ export const GET_USER_CHATS = gql`
         messages_aggregate(
           where: { 
             is_read: { _eq: false }
-            _not: {
-              _and: [
-                { sender_id: { _eq: $user_id } }
-                { sender_type: { _eq: $user_type } }
-              ]
-            }
+            sender_id: { _neq: $user_id }
           }
         ) {
           aggregate {
@@ -111,12 +106,7 @@ export const SUBSCRIBE_USER_CHATS = gql`
         messages_aggregate(
           where: { 
             is_read: { _eq: false }
-            _not: {
-              _and: [
-                { sender_id: { _eq: $user_id } }
-                { sender_type: { _eq: $user_type } }
-              ]
-            }
+            sender_id: { _neq: $user_id }
           }
         ) {
           aggregate {
@@ -254,17 +244,12 @@ export const SEND_MESSAGE = gql`
 
 // Mark messages as read
 export const MARK_MESSAGES_READ = gql`
-  mutation MarkMessagesRead($chat_id: Int!, $user_id: Int!, $user_type: String!) {
+  mutation MarkMessagesRead($chat_id: Int!, $user_id: Int!) {
     update_messages(
       where: {
         chat_id: { _eq: $chat_id }
+        sender_id: { _neq: $user_id }
         is_read: { _eq: false }
-        _not: {
-          _and: [
-            { sender_id: { _eq: $user_id } }
-            { sender_type: { _eq: $user_type } }
-          ]
-        }
       }
       _set: { is_read: true }
     ) {
@@ -275,16 +260,14 @@ export const MARK_MESSAGES_READ = gql`
 
 // Check if direct chat exists between two users
 export const CHECK_EXISTING_CHAT = gql`
-  query CheckExistingChat($user1_id: Int!, $user1_type: String!, $user2_id: Int!, $user2_type: String!) {
+  query CheckExistingChat($user1_id: Int!, $user2_id: Int!) {
     chat_participants(
       where: {
         user_id: { _eq: $user1_id }
-        user_type: { _eq: $user1_type }
         chat: {
           type: { _eq: "direct" }
           chat_participants: {
             user_id: { _eq: $user2_id }
-            user_type: { _eq: $user2_type }
           }
         }
       }
