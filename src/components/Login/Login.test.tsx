@@ -3,17 +3,32 @@ import { MemoryRouter } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Login from './Login';
-import { GET_STUDENT_BY_ADMISSION_NUMBER, GET_ADMIN_BY_EMAIL } from '../../graphql/login';
+import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/authService';
 
-// Mocks
+// Mock Auth Context
 const mockLogin = vi.fn();
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ login: mockLogin }),
 }));
 
-vi.mock('bcryptjs', () => ({
-  default: { compare: vi.fn().mockResolvedValue(true) },
+// Mock authService
+vi.mock('../../services/authService', () => ({
+  authService: {
+    login: vi.fn(),
+  },
 }));
+
+// Mock useNavigate
+const mockedNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
+
 
 describe('Login Component', () => {
   beforeEach(() => {
@@ -21,18 +36,20 @@ describe('Login Component', () => {
   });
 
   it('handles successful student login and navigation', async () => {
-    const studentMock = {
-      request: {
-        query: GET_STUDENT_BY_ADMISSION_NUMBER,
-        variables: { admissionNumber: 'STU123', name: 'John Doe' },
+    // Mock successful login call
+    (authService.login as any).mockResolvedValue({
+      success: true,
+      token: 'mock-jwt-token',
+      user: {
+        id: 101,
+        name: 'John Doe',
+        email: 'john@school.com',
+        role: 'student',
       },
-      result: {
-        data: { students: [{ id: 101, name: 'John Doe', email: 'john@school.com' }] }
-      },
-    };
+    });
 
     const { container } = render(
-      <MockedProvider mocks={[studentMock]} addTypename={false}>
+      <MockedProvider>
         <MemoryRouter>
           <Login />
         </MemoryRouter>
@@ -48,24 +65,31 @@ describe('Login Component', () => {
     fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
+      // Check for authService call with correct params
+      expect(authService.login).toHaveBeenCalledWith({
+        role: 'student',
+        identifier: 'STU123',
+        studentName: 'John Doe',
+        password: undefined,
+      });
+
+      // Check for login context call
       expect(mockLogin).toHaveBeenCalledWith(
         expect.objectContaining({ id: 101, role: 'student' }),
-        expect.any(String)
+        'mock-jwt-token'
       );
+
+      // Check navigation
+      expect(mockedNavigate).toHaveBeenCalledWith('/student/dashboard');
     });
   });
 
-  it('shows error if admin is not found', async () => {
-    const adminMock = {
-      request: {
-        query: GET_ADMIN_BY_EMAIL,
-        variables: { email: 'admin@school.com' },
-      },
-      result: { data: { admins: [] } },
-    };
+  it('shows error if admin is not found (login failure)', async () => {
+    // Mock failed login
+    (authService.login as any).mockRejectedValue(new Error('Admin not found with provided credentials'));
 
     const { container } = render(
-      <MockedProvider mocks={[adminMock]} addTypename={false}>
+      <MockedProvider>
         <MemoryRouter>
           <Login />
         </MemoryRouter>
@@ -86,6 +110,6 @@ describe('Login Component', () => {
     fireEvent.click(screen.getByRole('button'));
 
     // 4. Check for error message text
-    expect(await screen.findByText(/admin not found/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Login failed: Admin not found/i)).toBeInTheDocument();
   });
 });

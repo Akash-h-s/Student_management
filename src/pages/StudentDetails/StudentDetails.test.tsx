@@ -15,14 +15,14 @@ vi.mock('lucide-react', () => ({
 describe('StudentDetails (Parent View)', () => {
   it('renders error state when user is not logged in', () => {
     render(
-      <MockedProvider mocks={[]} addTypename={false}>
-        <AuthContext.Provider 
-          value={{ 
-            user: null, 
-            loading: false, 
-            login: vi.fn(), 
-            logout: vi.fn(), 
-            isAuthenticated: false 
+      <MockedProvider mocks={[]}>
+        <AuthContext.Provider
+          value={{
+            user: null,
+            loading: false,
+            login: vi.fn(),
+            logout: vi.fn(),
+            isAuthenticated: false
           }}
         >
           <StudentDetails />
@@ -30,7 +30,7 @@ describe('StudentDetails (Parent View)', () => {
       </MockedProvider>
     );
 
-    
-   
+
+
   });
 });

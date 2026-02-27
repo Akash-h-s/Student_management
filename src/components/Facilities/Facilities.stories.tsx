@@ -41,3 +41,9 @@ export const MobileView: Story = {
     viewport: { defaultViewport: "mobile1" },
   },
 };
+
+export const TabletView: Story = {
+  parameters: {
+    viewport: { defaultViewport: "tablet" },
+  },
+};

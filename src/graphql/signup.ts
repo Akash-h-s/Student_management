@@ -12,26 +12,3 @@ export const CHECK_ADMIN_EMAIL = gql`
 `;
 
 // Insert new admin
-export const INSERT_ADMIN = gql`
-  mutation InsertAdmin(
-    $school_name: String!
-    $email: String!
-    $password_hash: String!
-    $phone: String!
-  ) {
-    insert_admins_one(
-      object: {
-        school_name: $school_name
-        email: $email
-        password_hash: $password_hash
-        phone: $phone
-      }
-    ) {
-      id
-      school_name
-      email
-      phone
-      created_at
-    }
-  }
-`;

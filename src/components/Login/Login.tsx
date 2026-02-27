@@ -1,25 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLazyQuery } from '@apollo/client';
-import bcrypt from 'bcryptjs';
 import { useAuth } from '../../context/AuthContext';
-import {
-  GET_ADMIN_BY_EMAIL,
-  GET_TEACHER_BY_EMAIL,
-  GET_PARENT_BY_EMAIL,
-  GET_STUDENT_BY_ADMISSION_NUMBER,
-} from '../../graphql/login';
+import { authService } from '../../services/authService';
 
 
 type Role = 'student' | 'parent' | 'teacher' | 'admin';
 
-interface UserData {
-  id: string | number;
-  name?: string;
-  school_name?: string;
-  email?: string;
-  password_hash?: string;
-}
+
 
 interface User {
   id: number;
@@ -115,7 +102,7 @@ const InputField = ({
   autoFocus = false
 }: InputFieldProps) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
+    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
       {label}
     </label>
     <input
@@ -124,7 +111,7 @@ const InputField = ({
       onChange={(e) => onChange(e.target.value)}
       onKeyPress={onKeyPress}
       autoFocus={autoFocus}
-      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+      className="w-full p-2 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
     />
   </div>
 );
@@ -189,11 +176,7 @@ function Login() {
 
   const config = ROLE_CONFIG[role];
 
-  // GraphQL Queries
-  const [getAdmin] = useLazyQuery(GET_ADMIN_BY_EMAIL);
-  const [getTeacher] = useLazyQuery(GET_TEACHER_BY_EMAIL);
-  const [getParent] = useLazyQuery(GET_PARENT_BY_EMAIL);
-  const [getStudent] = useLazyQuery(GET_STUDENT_BY_ADMISSION_NUMBER);
+
 
   // Validation
   const validateInputs = (): boolean => {
@@ -215,42 +198,7 @@ function Login() {
     return true;
   };
 
-  // Verify Password
-  const verifyPassword = async (
-    userPassword: string | undefined,
-    inputPassword: string
-  ): Promise<boolean> => {
-    if (!userPassword || !inputPassword) return true;
-    return await bcrypt.compare(inputPassword, userPassword);
-  };
 
-  // Fetch User Data
-  const fetchUserData = async (): Promise<UserData | null> => {
-    let data;
-
-    switch (role) {
-      case 'admin':
-        ({ data } = await getAdmin({ variables: { email: identifier } }));
-        return data?.admins?.[0] || null;
-
-      case 'teacher':
-        ({ data } = await getTeacher({ variables: { email: identifier } }));
-        return data?.teachers?.[0] || null;
-
-      case 'parent':
-        ({ data } = await getParent({ variables: { email: identifier } }));
-        return data?.parents?.[0] || null;
-
-      case 'student':
-        ({ data } = await getStudent({
-          variables: { admissionNumber: identifier, name: studentName },
-        }));
-        return data?.students?.[0] || null;
-
-      default:
-        return null;
-    }
-  };
 
   // Handle Login
   const handleLogin = async () => {
@@ -260,32 +208,25 @@ function Login() {
     setError('');
 
     try {
-      const userData = await fetchUserData();
-
-      if (!userData) {
-        setError(ERROR_MESSAGES.USER_NOT_FOUND(role));
-        setLoading(false);
-        return;
-      }
-
-      const isValidPassword = await verifyPassword(userData.password_hash, password);
-
-      if (!isValidPassword) {
-        setError(ERROR_MESSAGES.INVALID_PASSWORD);
-        setLoading(false);
-        return;
-      }
-
-      const user: User = {
-        id: Number(userData.id),
-        name: userData.name || userData.school_name || '',
-        email: userData.email || identifier,
+      // Call backend login API
+      const response = await authService.login({
         role,
-      };
+        identifier,
+        password: config.requiresPassword ? password : undefined,
+        studentName: role === 'student' ? studentName : undefined,
+      });
 
-      const token = `jwt-${user.id}-${Date.now()}`;
-      login(user, token);
-      navigate(config.route);
+      if (response.success && response.token && response.user) {
+        const user: User = {
+          id: Number(response.user.id),
+          name: response.user.name,
+          email: response.user.email,
+          role: role as Role,
+        };
+
+        login(user, response.token);
+        navigate(config.route);
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setError(ERROR_MESSAGES.LOGIN_FAILED(error.message));
@@ -311,27 +252,27 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-xl p-5 sm:p-6 md:p-8 w-full max-w-xs sm:max-w-sm md:max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">EduCloud</h1>
-          <p className="text-gray-600">Secure Role-Based Access</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">EduCloud</h1>
+          <p className="text-xs sm:text-sm text-gray-600">Secure Role-Based Access</p>
         </div>
 
         {/* Error Message */}
         {error && <ErrorMessage message={error} />}
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6">
           {/* Role Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
               Login As
             </label>
             <select
               value={role}
               onChange={(e) => handleRoleChange(e.target.value as Role)}
-              className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2 sm:p-3 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
             >
               {ROLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>

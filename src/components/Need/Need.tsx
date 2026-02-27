@@ -1,5 +1,3 @@
-
-
 interface ImageColumnProps {
   images: string[];
   animationClass: string;
@@ -39,16 +37,13 @@ const ANIMATIONS = `
     0% { transform: translateY(-25%); }
     100% { transform: translateY(0); }
   }
-
   @keyframes scrollUp {
     0% { transform: translateY(0); }
     100% { transform: translateY(-25%); }
   }
-
   .animate-scrollDown {
     animation: scrollDown 10s linear infinite;
   }
-
   .animate-scrollUp {
     animation: scrollUp 10s linear infinite;
   }
@@ -57,15 +52,14 @@ const ANIMATIONS = `
 // Reusable Components
 const ImageColumn = ({ images, animationClass, alt }: ImageColumnProps) => {
   const duplicatedImages = [...images, ...images];
-
   return (
-    <div className={`flex flex-col gap-[1.5rem] ${animationClass}`}>
+    <div className={`flex flex-col gap-[1.5rem] max-[1023px]:gap-[1rem] max-[480px]:gap-[0.8rem] ${animationClass}`}>
       {duplicatedImages.map((src, idx) => (
         <img
           key={`${alt}-${idx}`}
           src={src}
           alt={`${alt} ${idx + 1}`}
-          className="w-[320px] h-[200px] object-cover rounded-[16px] shadow-[0_6px_16px_rgba(0,0,0,0.3)]"
+          className="w-[320px] h-[200px] min-[1024px]:max-[1366px]:w-[220px] min-[1024px]:max-[1366px]:h-[150px] max-[1023px]:w-[240px] max-[1023px]:h-[160px] max-[768px]:w-[180px] max-[768px]:h-[130px] max-[480px]:w-[150px] max-[480px]:h-[110px] object-cover rounded-[16px] max-[480px]:rounded-[12px] shadow-[0_6px_16px_rgba(0,0,0,0.3)]"
         />
       ))}
     </div>
@@ -73,25 +67,25 @@ const ImageColumn = ({ images, animationClass, alt }: ImageColumnProps) => {
 };
 
 const ContentSection = ({ title, paragraphs, highlight }: ContentSectionProps) => (
-  <div className="w-[550px] flex-shrink-0">
-    <h2 className="text-[2.8rem] font-bold mb-[1rem] text-white">
+  <div className="w-[550px] min-[1024px]:max-[1366px]:w-[380px] max-[1023px]:w-full max-[1023px]:max-w-[500px] flex-shrink-0 max-[768px]:text-center">
+    <h2 className="text-[2.8rem] min-[1024px]:max-[1366px]:text-[2rem] max-[768px]:text-[2rem] max-[480px]:text-[1.6rem] font-bold mb-[1rem] max-[480px]:mb-[0.8rem] text-white">
       {title}
     </h2>
     
     {paragraphs.map((paragraph, index) => (
-      <p key={index} className="text-[1.2rem] leading-[1.8] text-[#e1e1e1] mb-[1rem]">
+      <p key={index} className="text-[1.2rem] min-[1024px]:max-[1366px]:text-[1rem] max-[768px]:text-[1rem] max-[480px]:text-[0.95rem] leading-[1.8] max-[480px]:leading-[1.6] text-[#e1e1e1] mb-[1rem] max-[480px]:mb-[0.8rem]">
         {paragraph}
       </p>
     ))}
     
-    <p className="text-[1.6rem] font-bold text-white">
+    <p className="text-[1.6rem] min-[1024px]:max-[1366px]:text-[1.3rem] max-[768px]:text-[1.3rem] max-[480px]:text-[1.1rem] font-bold text-white">
       {highlight}
     </p>
   </div>
 );
 
 const ImageGallery = () => (
-  <div className="flex gap-[2rem] h-[460px] w-[680px] overflow-hidden flex-shrink-0">
+  <div className="flex gap-[2rem] min-[1024px]:max-[1366px]:gap-[1.2rem] max-[1023px]:gap-[1rem] max-[768px]:gap-[1rem] max-[480px]:gap-[0.8rem] h-[460px] min-[1024px]:max-[1366px]:h-[380px] max-[1023px]:h-[400px] max-[768px]:h-[350px] max-[480px]:h-[300px] w-[680px] min-[1024px]:max-[1366px]:w-[480px] max-[1023px]:w-full max-[1023px]:max-w-[500px] overflow-hidden flex-shrink-0">
     <ImageColumn
       images={LEFT_COLUMN_IMAGES}
       animationClass="animate-scrollDown"
@@ -109,8 +103,8 @@ const ImageGallery = () => (
 const Need = () => {
   return (
     <section className="bg-[#0C2B4E] text-white">
-      <div className="max-w-[1400px] mx-auto px-[5rem] py-[3rem]">
-        <div className="flex flex-row items-center gap-[3rem] flex-nowrap">
+      <div className="max-w-[1400px] mx-auto px-[5rem] min-[1024px]:max-[1366px]:px-[2rem] max-[1023px]:px-[2rem] max-[768px]:px-[2rem] max-[480px]:px-[1.5rem] py-[3rem]">
+        <div className="flex flex-row max-[1023px]:flex-col items-center gap-[3rem] min-[1024px]:max-[1366px]:gap-[1.5rem] max-[1023px]:gap-[2rem] flex-nowrap">
           <ContentSection
             title={CONTENT.title}
             paragraphs={CONTENT.paragraphs}
@@ -119,7 +113,6 @@ const Need = () => {
           <ImageGallery />
         </div>
       </div>
-
       <style>{ANIMATIONS}</style>
     </section>
   );

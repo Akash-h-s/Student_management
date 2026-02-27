@@ -111,10 +111,10 @@ const BUTTON_STYLES = {
 } as const;
 
 const STYLES = {
-  card: 'bg-white rounded-lg shadow-md p-6',
+  card: 'bg-white rounded-lg shadow-md p-4 md:p-6',
   table: 'min-w-full bg-white border',
-  tableHeader: 'px-6 py-3 border-b text-left font-semibold',
-  tableCell: 'px-6 py-4 border-b',
+  tableHeader: 'px-2 md:px-6 py-2 md:py-3 border-b text-left font-semibold text-xs md:text-sm',
+  tableCell: 'px-2 md:px-6 py-2 md:py-4 border-b text-xs md:text-sm',
   tableRow: 'hover:bg-gray-50',
 } as const;
 
@@ -134,22 +134,29 @@ const calculatePercentage = (obtained: number, max: number): string => {
 
 const groupMarksByExam = (marks: Mark[]): Record<string, Mark[]> => {
   const grouped: Record<string, Mark[]> = {};
-  const keyMapping: Record<string, string> = {};
+  const seenExamIds = new Set<number>();
+  const examKeyMapping: Record<number, string> = {};
+  const seenSubjectsByExam: Record<number, Set<number>> = {};
 
   marks.forEach((mark) => {
-    const examKey = `${mark.exam.name} (${mark.exam.academic_year})`;
-    const lowerKey = examKey.toLowerCase();
-
-    if (!keyMapping[lowerKey]) {
-      keyMapping[lowerKey] = examKey;
-      grouped[examKey] = [];
+    const examId = mark.exam.id;
+    
+    // Initialize exam tracking if first time seeing this exam
+    if (!seenExamIds.has(examId)) {
+      seenExamIds.add(examId);
+      examKeyMapping[examId] = `${mark.exam.name} (${mark.exam.academic_year})`;
+      seenSubjectsByExam[examId] = new Set<number>();
     }
 
-    const originalKey = keyMapping[lowerKey];
-    if (!grouped[originalKey]) {
-      grouped[originalKey] = [];
+    // Use exam.id + subject.id to prevent duplicate subjects in same exam
+    if (!seenSubjectsByExam[examId].has(mark.subject.id)) {
+      seenSubjectsByExam[examId].add(mark.subject.id);
+      const examKey = examKeyMapping[examId];
+      if (!grouped[examKey]) {
+        grouped[examKey] = [];
+      }
+      grouped[examKey].push(mark);
     }
-    grouped[originalKey].push(mark);
   });
 
   return grouped;
@@ -275,8 +282,8 @@ const SchoolInfo = React.memo(({ admin }: SchoolInfoProps) => {
   if (!admin?.school_name) return null;
 
   return (
-    <div className="text-right">
-      <p className="text-sm font-semibold text-gray-700">{admin.school_name}</p>
+    <div className="text-left md:text-right">
+      <p className="text-xs md:text-sm font-semibold text-gray-700">{admin.school_name}</p>
       {admin.school_address && <p className="text-xs text-gray-500">{admin.school_address}</p>}
       {admin.school_phone && <p className="text-xs text-gray-500">{admin.school_phone}</p>}
     </div>
@@ -294,14 +301,18 @@ const MarkRow = React.memo(({ mark }: MarkRowProps) => {
 
   return (
     <tr className={STYLES.tableRow}>
-      <td className={STYLES.tableCell}>{mark.subject.name}</td>
+      <td className={STYLES.tableCell}>
+        <span className="truncate block max-w-[100px] md:max-w-none">{mark.subject.name}</span>
+      </td>
       <td className={STYLES.tableCell}>{mark.marks_obtained}</td>
       <td className={STYLES.tableCell}>{mark.max_marks}</td>
       <td className={STYLES.tableCell}>{percentage}%</td>
       <td className={STYLES.tableCell}>
-        <span className={`px-2 py-1 rounded font-semibold ${gradeColor}`}>{mark.grade}</span>
+        <span className={`px-1 md:px-2 py-1 rounded font-semibold text-xs md:text-sm inline-block ${gradeColor}`}>{mark.grade}</span>
       </td>
-      <td className={STYLES.tableCell}>{mark.remarks || '-'}</td>
+      <td className={STYLES.tableCell}>
+        <span className="text-xs block truncate max-w-[80px] md:max-w-none">{mark.remarks || '-'}</span>
+      </td>
     </tr>
   );
 });
@@ -317,22 +328,22 @@ const ExamSummary = React.memo(({ marks, onPrintMarkscard, isGenerating }: ExamS
   const { total, max, percentage } = useMemo(() => calculateTotalMarks(marks), [marks]);
 
   return (
-    <div className="mt-4 p-4 bg-gray-50 rounded">
-      <div className="flex justify-between items-center mb-3">
-        <div>
+    <div className="mt-4 p-3 md:p-4 bg-gray-50 rounded">
+      <div className="flex flex-col sm:grid sm:grid-cols-3 gap-3 mb-3">
+        <div className="text-xs md:text-sm">
           <span className="font-semibold">Total Subjects:</span> {marks.length}
         </div>
-        <div>
+        <div className="text-xs md:text-sm">
           <span className="font-semibold">Total Marks:</span> {total} / {max}
         </div>
-        <div>
+        <div className="text-xs md:text-sm">
           <span className="font-semibold">Overall Percentage:</span> {percentage}%
         </div>
       </div>
-      <button onClick={onPrintMarkscard} disabled={isGenerating} className={BUTTON_STYLES.gradient}>
+      <button onClick={onPrintMarkscard} disabled={isGenerating} className="w-full mt-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base">
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5"
+          className="h-4 md:h-5 w-4 md:w-5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -344,7 +355,7 @@ const ExamSummary = React.memo(({ marks, onPrintMarkscard, isGenerating }: ExamS
             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
           />
         </svg>
-        {isGenerating ? 'Generating...' : 'Print Markscard'}
+        <span>{isGenerating ? 'Generating...' : 'Print Markscard'}</span>
       </button>
     </div>
   );
@@ -359,11 +370,11 @@ interface ExamSectionProps {
 }
 
 const ExamSection = React.memo(({ examName, marks, onPrintMarkscard, isGenerating }: ExamSectionProps) => (
-  <div className="border rounded-lg p-4">
-    <h4 className="text-lg font-semibold text-blue-600 mb-3">{examName}</h4>
+  <div className="border rounded-lg p-3 md:p-4">
+    <h4 className="text-base md:text-lg font-semibold text-blue-600 mb-3">{examName}</h4>
 
-    <div className="overflow-x-auto">
-      <table className={STYLES.table}>
+    <div className="overflow-x-auto -mx-3 md:mx-0">
+      <table className={`${STYLES.table} min-w-[700px] md:min-w-full`}>
         <thead className="bg-gray-50">
           <tr>
             {TABLE_HEADERS.map((header) => (
@@ -398,16 +409,18 @@ const StudentCard = React.memo(({ student, onPrintMarkscard, isGenerating }: Stu
   return (
     <div className={`${STYLES.card} mb-6`}>
       <div className="mb-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{student.name}</h2>
-            <p className="text-gray-600">Admission No: {student.admission_no}</p>
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div className="flex-1">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900">{student.name}</h2>
+            <p className="text-sm md:text-base text-gray-600">Admission No: {student.admission_no}</p>
           </div>
-          <SchoolInfo admin={student.admin} />
+          <div className="w-full md:w-auto">
+            <SchoolInfo admin={student.admin} />
+          </div>
         </div>
       </div>
 
-      <h3 className="text-xl font-semibold mb-4">Academic Performance</h3>
+      <h3 className="text-lg md:text-xl font-semibold mb-4">Academic Performance</h3>
 
       {student.marks && student.marks.length > 0 ? (
         <div className="space-y-6">
@@ -499,9 +512,9 @@ export default function StudentDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">My Children</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">My Children</h1>
 
         <GeneratingOverlay isGenerating={generatingMarkscard} />
 

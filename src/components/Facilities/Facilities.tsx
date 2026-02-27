@@ -152,9 +152,9 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   highlightText, 
   subtitleEnd 
 }) => (
-  <div className="text-center mb-10">
-    <h1 className="text-4xl text-white mb-1 font-semibold">{title}</h1>
-    <p className="text-lg text-white">
+  <div className="text-center mb-6 sm:mb-10">
+    <h1 className="text-2xl sm:text-3xl md:text-4xl text-white mb-2 sm:mb-3 font-semibold px-4">{title}</h1>
+    <p className="text-sm sm:text-base md:text-lg text-white px-4">
       {subtitle}{" "}
       <span className="text-orange-500 font-bold">{highlightText}</span>{" "}
       {subtitleEnd}
@@ -169,13 +169,13 @@ const FacilityCard: React.FC<FacilityCardProps> = ({
   bgColor, 
   iconColor 
 }) => (
-  <div className="flex items-center gap-4 text-left cursor-pointer hover:scale-105 transition-transform">
-    <div className={`w-16 h-16 ${bgColor} rounded-xl text-3xl flex items-center justify-center`}>
+  <div className="flex items-start sm:items-center gap-3 sm:gap-4 text-left cursor-pointer hover:scale-105 transition-transform">
+    <div className={`w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 ${bgColor} rounded-lg sm:rounded-xl text-2xl sm:text-2xl md:text-3xl flex items-center justify-center flex-shrink-0`}>
       <Icon className={iconColor} />
     </div>
-    <div>
-      <h3 className="text-xl text-white leading-none">{title}</h3>
-      <p className="text-sm text-orange-200 mt-1 max-w-xs">{desc}</p>
+    <div className="min-w-0">
+      <h3 className="text-base sm:text-lg md:text-xl text-white leading-tight">{title}</h3>
+      <p className="text-xs sm:text-sm text-orange-200 mt-1">{desc}</p>
     </div>
   </div>
 );
@@ -209,7 +209,7 @@ const Facilities: React.FC<FacilitiesProps> = ({
   const handleClosePopup = () => setPopup(false);
 
   return (
-    <div className="bg-slate-800 px-5 py-16 text-center font-akash">
+    <div className="bg-slate-800 px-3 sm:px-5 py-12 sm:py-16 md:py-20 text-center font-akash">
       <SectionHeader
         title={headerContent.title}
         subtitle={headerContent.subtitle}
@@ -218,7 +218,7 @@ const Facilities: React.FC<FacilitiesProps> = ({
       />
 
       <div className="flex justify-center">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-16 max-w-3xl w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8 md:gap-10 max-w-7xl w-full px-2">
           {facilities.map((facility) => (
             <FacilityCard
               key={facility.id}
