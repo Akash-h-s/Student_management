@@ -6,12 +6,10 @@ import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBMigrationPlugin } from 'rxdb/plugins/migration-schema';
-
 import { studentSchema } from './schemas/student.schema';
 import { chatSchema } from './schemas/chat.schema';
 import { messageSchema } from './schemas/message.schema';
 import { dashboardStatsSchema } from './schemas/dashboard_stats.schema';
-
 // Add plugins
 if (import.meta.env.DEV) {
     addRxPlugin(RxDBDevModePlugin);

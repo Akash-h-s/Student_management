@@ -1,14 +1,14 @@
 
 import { useAdminUpload } from './hooks/useAdminUpload';
-import { Header } from './components/Header';
-import { UploadTypeSelector } from './components/UploadTypeSelector';
-import { StudentFields } from './components/StudentFields';
-import { FileUploadInput } from './components/FileUploadInput';
-import { SelectedFileInfo } from './components/SelectedFileInfo';
-import { WorkflowProgress } from './components/WorkflowProgress';
-import { SuccessMessage } from './components/SuccessMessage';
-import { ErrorMessage } from './components/ErrorMessage';
-import { Instructions } from './components/Instructions';
+import { Header } from './atoms/Header';
+import { UploadTypeSelector } from './atoms/UploadTypeSelector';
+import { StudentFields } from './atoms/StudentFields';
+import { FileUploadInput } from './atoms/FileUploadInput';
+import { SelectedFileInfo } from './atoms/SelectedFileInfo';
+import { WorkflowProgress } from './atoms/WorkflowProgress';
+import { SuccessMessage } from './atoms/SuccessMessage';
+import { ErrorMessage } from './atoms/ErrorMessage';
+import { Instructions } from './atoms/Instructions';
 
 export default function AdminUpload() {
   const {
@@ -107,7 +107,7 @@ export default function AdminUpload() {
             </button>
           )}
 
-          <Instructions />
+          <Instructions/>
         </div>
       </div>
     </div>

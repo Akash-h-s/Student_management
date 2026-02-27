@@ -7,11 +7,14 @@ import { ExamSummary } from './ExamSummary';
 interface ExamSectionProps {
     examName: string;
     marks: Mark[];
+    studentName: string;
+    admissionNo: string;
+    schoolName: string;
     onPrintMarkscard: () => void;
     isGenerating: boolean;
 }
 
-export const ExamSection = React.memo(({ examName, marks, onPrintMarkscard, isGenerating }: ExamSectionProps) => (
+export const ExamSection = React.memo(({ examName, marks, studentName, admissionNo, schoolName, onPrintMarkscard, isGenerating }: ExamSectionProps) => (
     <div className="border rounded-lg p-3 md:p-4">
         <h4 className="text-base md:text-lg font-semibold text-blue-600 mb-3">{examName}</h4>
 
@@ -34,7 +37,15 @@ export const ExamSection = React.memo(({ examName, marks, onPrintMarkscard, isGe
             </table>
         </div>
 
-        <ExamSummary marks={marks} onPrintMarkscard={onPrintMarkscard} isGenerating={isGenerating} />
+        <ExamSummary
+            marks={marks}
+            examName={examName}
+            studentName={studentName}
+            admissionNo={admissionNo}
+            schoolName={schoolName}
+            onPrintMarkscard={onPrintMarkscard}
+            isGenerating={isGenerating}
+        />
     </div>
 ));
 ExamSection.displayName = 'ExamSection';

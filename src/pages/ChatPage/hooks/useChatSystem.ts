@@ -439,6 +439,12 @@ export const useChatSystem = () => {
         }
 
         try {
+            // Check if token exists before even trying
+            if (!localStorage.getItem('token')) {
+                alert('Unauthorized: No active session found. Please login.');
+                return;
+            }
+
             await sendMessageMutation({
                 variables: {
                     chat_id: selectedChat.id,
@@ -448,8 +454,25 @@ export const useChatSystem = () => {
                     content: tempMessage,
                 },
             });
-        } catch (error) {
-            console.error('Error sending message (falling back to offline):', error);
+        } catch (error: any) {
+            console.error('[Chat] Error sending message:', error);
+
+            const isUnauthorized =
+                error?.networkError?.statusCode === 401 ||
+                error?.graphQLErrors?.some((e: any) => {
+                    const code = e.extensions?.code?.toLowerCase();
+                    return ['unauthorized', 'invalid-jwt', 'access-denied', 'no-role-found'].includes(code);
+                }) ||
+                error.message?.toLowerCase().includes('jwt') ||
+                error.message?.toLowerCase().includes('unauthorized');
+
+            if (isUnauthorized) {
+                console.error('[Chat] Unauthorized message attempt blocked');
+                // The apolloClient error link will handle the logout/alert
+                return;
+            }
+
+            console.warn('[Chat] Mutation failed, falling back to offline outbox');
             await insertOffline();
         }
     }, [messageInput, selectedChat, currentUserId, currentUserName, currentUserRole, sendMessageMutation, db]);

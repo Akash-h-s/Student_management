@@ -1,9 +1,11 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import type{ UploadType, UploadStatus, WorkflowStatus } from '../types';
+import type { UploadType, UploadStatus, WorkflowStatus } from '../types';
 import { MESSAGES, API_BASE_URL, POLLING_INTERVAL_MS } from '../constants';
 import { isValidFileType, getProgressFromStep, formatSuccessMessage } from '../utils';
+// import { useAuth } from '../../../context/AuthContext';
 
 export const useAdminUpload = () => {
+    // const { logout } = useAuth();
     // State
     const [uploadType, setUploadType] = useState<UploadType | ''>('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -39,6 +41,14 @@ export const useAdminUpload = () => {
                 },
                 body: JSON.stringify({ workflowId: wfId }),
             });
+
+            if (res.status === 401) {
+                console.warn('[AdminUpload] Polling unauthorized (401).');
+                setMessage('Session expired or unauthorized. Please re-login.');
+                setUploadStatus('error');
+                stopPolling();
+                return;
+            }
 
             if (!res.ok) return;
 
@@ -131,6 +141,14 @@ export const useAdminUpload = () => {
                         fileBase64: base64
                     }),
                 });
+
+                if (res.status === 401) {
+                    setMessage('Failed to upload: Unauthorized access. Please check your credentials.');
+                    setUploadStatus('error');
+                    setProgress(0);
+                    setCurrentStep('');
+                    return;
+                }
 
                 const data = await res.json();
 

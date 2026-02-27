@@ -37,6 +37,9 @@ export const StudentCard = React.memo(({ student, onPrintMarkscard, isGenerating
                             key={examName}
                             examName={examName}
                             marks={marks}
+                            studentName={student.name}
+                            admissionNo={student.admission_no}
+                            schoolName={student.admin?.school_name || student.creator_admin?.school_name || ''}
                             onPrintMarkscard={() => onPrintMarkscard(student, marks, examName)}
                             isGenerating={isGenerating}
                         />

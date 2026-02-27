@@ -6,7 +6,7 @@ export const useOfflineChat = (currentUserId: number | null) => {
     const db = useRxDB();
     const [localChats, setLocalChats] = useState<ChatDoc[]>([]);
 
-    // Subscribe to local chats - only those where the current user is a participant
+    
     useEffect(() => {
         if (!db || !currentUserId) return;
 
