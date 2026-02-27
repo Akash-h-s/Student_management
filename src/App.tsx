@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { checkAuthFromStorage } from './store/slices/authSlice';
 
 // Components
 import Navbar from './components/Navbar/Navbar';
@@ -36,7 +38,12 @@ function Unauthorized() {
 }
 
 export default function App() {
-  const { user } = useAuth();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    dispatch(checkAuthFromStorage());
+  }, [dispatch]);
 
   return (
     <>

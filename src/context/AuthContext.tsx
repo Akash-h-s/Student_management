@@ -36,32 +36,31 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const isPathPublic = (path: string) => {
-  const normalized = path.toLowerCase().replace(/\/$/, '') || '/';
-  return normalized === '/' || normalized === '/login' || normalized === '/signup';
-};
+
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  
+
   const memoirToken = useRef<string | null>(localStorage.getItem('token'));
 
   const logout = useCallback(() => {
     console.warn('[AUTH] Session terminated. Clearing security context...');
 
-   
+
     setUser(null);
     memoirToken.current = null;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
 
-   
+
+    /* 
     if (!isPathPublic(window.location.pathname)) {
       console.log('[AUTH] Protected route detected. Forcing redirect to /login');
       window.location.href = '/login';
     }
+    */
   }, []);
 
   const validateAndSetToken = useCallback((token: string) => {
@@ -75,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error('Structural mismatch: Not a 3-part JWT');
       }
 
-    
+
       const parts = token.split('.');
       try {
         atob(parts[0]);
@@ -114,6 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log(`[AUTH] Session valid for: ${userData.role}`);
     } catch (error: any) {
       console.error(`[AUTH] Tampering detected: ${error.message}`);
+      alert('Unauthorized: Security credentials have been modified or are invalid.');
       logout();
     }
   }, [logout]);
@@ -144,6 +144,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return;
         }
         if (e.newValue !== e.oldValue) {
+          alert("data tampered")
           console.warn('[AUTH] Critical user data change detected in storage. Forcing logout.');
           logout();
         }

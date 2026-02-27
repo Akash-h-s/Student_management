@@ -10,7 +10,7 @@ const meta: Meta<typeof Hero> = {
     decorators: [
         (Story) => (
             <BrowserRouter>
-                <Story />
+                {Story()}
             </BrowserRouter>
         ),
     ],
@@ -45,7 +45,7 @@ export const Default: Story = {
                 ]}
                 addTypename={false}
             >
-                <Story />
+                {Story()}
             </MockedProvider>
         ),
     ],
@@ -55,13 +55,13 @@ export const Loading: Story = {
     decorators: [
         (Story) => (
             <MockedProvider mocks={[]} addTypename={false}>
-                <Story />
+                {Story()}
             </MockedProvider>
         ),
     ],
 };
 
-export const Error: Story = {
+export const StatsError: Story = {
     decorators: [
         (Story) => (
             <MockedProvider
@@ -75,7 +75,7 @@ export const Error: Story = {
                 ]}
                 addTypename={false}
             >
-                <Story />
+                {Story()}
             </MockedProvider>
         ),
     ],

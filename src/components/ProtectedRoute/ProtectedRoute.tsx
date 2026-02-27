@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAppSelector } from '../../store/hooks';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAppSelector((state) => state.auth);
 
   if (loading) {
     // Show a loading spinner or nothing while checking session
@@ -20,7 +20,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   // If there is no user in the context state, they are not authenticated.
-  // The AuthContext handles removing the user if the token is tampered with.
   if (!user) {
     console.log('ProtectedRoute: No user found, redirecting to login');
     return <Navigate to="/login" replace />;
@@ -29,7 +28,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   // Role-based access control
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     console.log(`ProtectedRoute: Role ${user.role} not allowed, redirecting to dashboard`);
-    return <Navigate to={`/${user.role}/dashboard`} replace />;
+
+    // Default dashboard routes based on roles
+    let redirectPath = '/login';
+    if (user.role === 'admin') redirectPath = '/admin/dashboard';
+    else if (user.role === 'teacher') redirectPath = '/teacher/dashboard';
+    else if (user.role === 'student') redirectPath = '/student/dashboard';
+    else if (user.role === 'parent') redirectPath = '/parent/dashboard';
+
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

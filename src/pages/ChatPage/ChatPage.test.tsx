@@ -1,7 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
-import { AuthContext } from '../../context/AuthContext';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '../../store/slices/authSlice';
 import ChatSystem from './ChatPage';
 import { SUBSCRIBE_USER_CHATS, SUBSCRIBE_CHAT_MESSAGES, SEARCH_PARENTS, SEND_MESSAGE } from '../../graphql/chat';
 
@@ -9,6 +11,15 @@ import { SUBSCRIBE_USER_CHATS, SUBSCRIBE_CHAT_MESSAGES, SEARCH_PARENTS, SEND_MES
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
 const mockUser = { id: 1, name: 'Teacher John', role: 'teacher' };
+
+const createMockStore = (initialState: any) => configureStore({
+  reducer: {
+    auth: authReducer,
+  },
+  preloadedState: {
+    auth: initialState
+  }
+});
 
 describe('ChatSystem Component', () => {
   beforeEach(() => {
@@ -27,11 +38,17 @@ describe('ChatSystem Component', () => {
       },
     ];
 
+    const store = createMockStore({
+      user: mockUser,
+      isAuthenticated: true,
+      loading: false
+    });
+
     render(
       <MockedProvider mocks={mocks} addTypename={false}>
-        <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
+        <Provider store={store}>
           <ChatSystem />
-        </AuthContext.Provider>
+        </Provider>
       </MockedProvider>
     );
 
@@ -64,11 +81,16 @@ describe('ChatSystem Component', () => {
       },
     };
 
+    const store = createMockStore({
+      user: mockUser,
+      isAuthenticated: true
+    });
+
     render(
       <MockedProvider mocks={[chatSubMock, searchMock]} addTypename={false}>
-        <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
+        <Provider store={store}>
           <ChatSystem />
-        </AuthContext.Provider>
+        </Provider>
       </MockedProvider>
     );
 
@@ -131,11 +153,16 @@ describe('ChatSystem Component', () => {
       result: { data: { insert_messages_one: { id: 1001, sender_id: 1, sender_type: 'teacher', content: 'Hello Alice', created_at: new Date().toISOString(), is_read: false } } },
     };
 
+    const store = createMockStore({
+      user: mockUser,
+      isAuthenticated: true
+    });
+
     render(
       <MockedProvider mocks={[chatListMock, chatMessagesMock, sendMessageMock]} addTypename={false}>
-        <AuthContext.Provider value={{ user: mockUser, loading: false } as any}>
+        <Provider store={store}>
           <ChatSystem />
-        </AuthContext.Provider>
+        </Provider>
       </MockedProvider>
     );
 
@@ -148,21 +175,9 @@ describe('ChatSystem Component', () => {
     fireEvent.change(input, { target: { value: 'Hello Alice' } });
 
     // Send message
-    // The send button might be an icon button without text, relying on aria-label or just the SVG
-    // In the component, it's <Send className="w-5 h-5" /> inside a button. 
-    // Best to find by role 'button' and maybe the container or just the last button in that section.
-    // Or if checking the code, the button wraps the input group or is next to it.
-    // Let's assume there is only one button in the input area or we can find it by generic role if it's the only one nearby.
-    // Given the previous test used `getByRole('button', { name: '' })`, we'll try to be more specific if possible or stick to that if it worked.
-    // Actually, let's verify if there is an aria-label. The code didn't show one explicitly but the previous test implies it was finding it.
-    // I'll add a helper to find it.
-
-    // Note: In the previous test code provided (lines 133-134):
-    // const sendButton = screen.getByRole('button', { name: '' }); 
-
-    // I'll proceed with finding the button that contains the Send icon if possible or just the submit button.
+    // Find the Send button (assumed to be the last button or accessible by icon)
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons[buttons.length - 1]; // Usually the last button is the send button in the chat interface
+    const sendButton = buttons[buttons.length - 1];
     fireEvent.click(sendButton);
 
     // Verify input cleared (optimistic UI check)

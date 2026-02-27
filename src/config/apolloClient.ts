@@ -5,6 +5,8 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { onError } from '@apollo/client/link/error';
 import { createClient } from 'graphql-ws';
+import { store } from '../store';
+import { logoutUser } from '../store/slices/authSlice';
 
 
 const httpLink = createHttpLink({
@@ -25,6 +27,7 @@ const wsLink = new GraphQLWsLink(
     },
   })
 );
+
 
 // List of public operations that don't require JWT (login, signup)
 const PUBLIC_OPERATIONS = [
@@ -47,23 +50,17 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
       // Handle the access-denied or invalid-jwt codes from Hasura
       if (code === 'access-denied' || code === 'invalid-jwt' || code === 'unauthorized') {
         console.warn('[Apollo Error] Unauthorized - clearing session');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-
-        // Force redirect if not on public page
-        const path = window.location.pathname.toLowerCase();
-        const isPublic = path === '/' || path === '/login' || path === '/signup';
-        if (!isPublic) {
-          window.location.href = '/login';
-        }
+        alert('Unauthorized: Access denied or session expired.');
+        store.dispatch(logoutUser() as any);
       }
     }
   }
 
   if (networkError && 'statusCode' in networkError) {
     if ((networkError as any).statusCode === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      console.warn('[Apollo Error] 401 - clearing session');
+      alert('Unauthorized: Session expired (401).');
+      store.dispatch(logoutUser() as any);
     }
   }
 });
