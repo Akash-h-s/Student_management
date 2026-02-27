@@ -4,7 +4,7 @@ import { useAuth } from './context/AuthContext';
 // Components
 import Navbar from './components/Navbar/Navbar';
 import Footer from './components/Footer/Footer';
-import Backgroundstyle from './components/Vedio/Vedio';
+import Hero from './components/Hero/Hero';
 import Facilities from './components/Facilities/Facilities';
 import AboutUs from './components/AboutUs/AboutUs';
 import Need from './components/Need/Need';
@@ -45,7 +45,7 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={
           <>
-            <Backgroundstyle />
+            <Hero />
             <Facilities />
             <Need />
             <Footer />
@@ -53,7 +53,7 @@ export default function App() {
         } />
         <Route path="/about" element={<><AboutUs /><Footer /></>} />
         <Route path="/helpus" element={<HelpUs />} />
-        
+
         {/* Auth Logic: Redirect if already logged in */}
         <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Login />} />
         <Route path="/signup" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Signup />} />

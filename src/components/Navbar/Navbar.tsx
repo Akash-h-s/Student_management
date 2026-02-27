@@ -172,7 +172,7 @@ const MobileMenu = ({
   if (!isOpen) return null;
 
   return (
-    <div className="md:hidden bg-blue-800 px-6 py-4 space-y-3">
+    <div className="md:hidden bg-[#0a0a0f] px-6 py-4 space-y-3">
       <RoleBasedNavLinks role={user?.role} onLinkClick={onLinkClick} />
       
       {!user ? (
@@ -230,7 +230,7 @@ function Navbar() {
   };
 
   return (
-    <div className="bg-blue-900 shadow-lg">
+    <div className="bg-[#0F2854] shadow-lg">
       <div className="flex justify-between items-center px-6 py-3 max-w-7xl mx-auto">
         <Logo />
 

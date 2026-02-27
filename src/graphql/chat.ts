@@ -260,14 +260,16 @@ export const MARK_MESSAGES_READ = gql`
 
 // Check if direct chat exists between two users
 export const CHECK_EXISTING_CHAT = gql`
-  query CheckExistingChat($user1_id: Int!, $user2_id: Int!) {
+  query CheckExistingChat($user1_id: Int!, $user1_type: String!, $user2_id: Int!, $user2_type: String!) {
     chat_participants(
       where: {
         user_id: { _eq: $user1_id }
+        user_type: { _eq: $user1_type }
         chat: {
           type: { _eq: "direct" }
           chat_participants: {
             user_id: { _eq: $user2_id }
+            user_type: { _eq: $user2_type }
           }
         }
       }

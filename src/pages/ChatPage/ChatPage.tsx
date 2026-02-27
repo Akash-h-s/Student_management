@@ -114,7 +114,10 @@ const parseUserId = (id: string | number | undefined): number => {
   return parseInt(id || '0', 10);
 };
 
-const getInitials = (name: string): string => name.charAt(0).toUpperCase();
+const getInitials = (name: string | null | undefined): string => {
+  if (!name) return '?';
+  return name.charAt(0).toUpperCase();
+};
 
 const convertToIST = (utcTimestamp: string): Date => {
   let timestamp = utcTimestamp;
@@ -155,11 +158,11 @@ const formatTime = (timestamp: string): string => {
 
 
 
-const transformChatData = (cp: any, currentUserId: number, currentUserName: string): Chat => {
+const transformChatData = (cp: any, currentUserId: number, currentUserName: string, currentUserRole: string): Chat => {
   const chat = cp.chat;
 
   const participants = chat.chat_participants
-    .filter((p: any) => p.user_id !== currentUserId)
+    .filter((p: any) => !(p.user_id === currentUserId && p.user_type === currentUserRole))
     .map((p: any) => {
       const userInfo = p.user_type === 'parent' ? p.parent : p.teacher;
       return {
@@ -265,7 +268,7 @@ const ChatListItem = React.memo(({ chat, isSelected, currentUserId, onSelect }: 
     <div className="flex items-start gap-3">
       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${CHAT_COLORS[chat.type]
         }`}>
-        {chat.type === 'group' ? <Users className="w-6 h-6" /> : getInitials(chat.name)}
+        {chat.type === 'group' ? <Users className="w-6 h-6" /> : getInitials(chat.name || 'Unknown')}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
@@ -307,7 +310,7 @@ const ParentListItem = React.memo(({ parent, onSelect }: ParentListItemProps) =>
   >
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-semibold">
-        {getInitials(parent.name)}
+        {getInitials(parent.name || 'Unknown')}
       </div>
       <div>
         <h3 className="font-medium text-gray-900">{parent.name}</h3>
@@ -490,7 +493,7 @@ const ChatSystem: React.FC = () => {
   const chats = useMemo(() => {
     if (!chatsData?.chat_participants) return [];
     // Transform all chats from server
-    const transformed = chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId, currentUserName));
+    const transformed = chatsData.chat_participants.map((cp: any) => transformChatData(cp, currentUserId, currentUserName, currentUserRole));
 
     // Deduplicate by chat id first
     const seenIds = new Set<number>();
@@ -510,7 +513,7 @@ const ChatSystem: React.FC = () => {
     });
 
     // Sort by last message timestamp (most recent first)
-    return dedupedByName.sort((a, b) => {
+    return dedupedByName.sort((a: any, b: any) => {
       const ta = a.last_message ? new Date(a.last_message.timestamp).getTime() : 0;
       const tb = b.last_message ? new Date(b.last_message.timestamp).getTime() : 0;
       return tb - ta;
@@ -549,7 +552,7 @@ const ChatSystem: React.FC = () => {
           user1_id: currentUserId,
           user1_type: currentUserRole,
           user2_id: parent.id,
-          user2_type: 'parent',
+          user2_type: parent.role || 'parent',
         },
       });
 
@@ -589,8 +592,8 @@ const ChatSystem: React.FC = () => {
           variables: {
             participants: [
               { chat_id: chatId, user_id: currentUserId, user_type: currentUserRole },
-              { chat_id: chatId, user_id: parent.id, user_type: 'parent' },
-            ],
+              { chat_id: chatId, user_id: parent.id, user_type: parent.role || 'parent' },
+            ].filter((v, i, a) => a.findIndex(t => t.user_id === v.user_id && t.user_type === v.user_type) === i),
           },
         });
 

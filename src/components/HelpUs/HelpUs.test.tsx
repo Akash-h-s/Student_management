@@ -5,37 +5,39 @@ import HelpUs from "./HelpUs";
 describe("HelpUs Component", () => {
   it("renders all default guides", () => {
     render(<HelpUs />);
-    expect(screen.getByText(/Admin Guide Made Simple/i)).toBeInTheDocument();
-    expect(screen.getByText(/Teacher Guide/i)).toBeInTheDocument();
-    expect(screen.getByText(/Student Guide/i)).toBeInTheDocument();
-    expect(screen.getByText(/Parent Guide/i)).toBeInTheDocument();
+    expect(screen.getByText(/Admin: Institutional Control/i)).toBeInTheDocument();
+    expect(screen.getByText(/Must & Should: Data Rules/i)).toBeInTheDocument();
+    expect(screen.getByText(/Teacher: Academic Management/i)).toBeInTheDocument();
+    expect(screen.getByText(/Student & Parent: Progress Tracking/i)).toBeInTheDocument();
   });
 
   it("alternates image position correctly", () => {
     const { container } = render(<HelpUs />);
-    // Select all GuideCard containers
+    // Select all flex-row containers (GuideCards)
     const guideCards = container.querySelectorAll(".flex-col.md\\:flex-row");
-    
-    // index 0: isImageLeft = false (Image should be second/right)
-    // index 1: isImageLeft = true (Image should be first/left)
-    
+
+    // index 0: isImageLeft = false (DEFAULT_GUIDES[0] image is at bottom/right)
+    // index 1: isImageLeft = true (DEFAULT_GUIDES[1] image is at top/left)
+
     const secondCard = guideCards[1];
     const firstChildOfSecondCard = secondCard.firstElementChild;
-    
+
     // The first child of the second card should be the Image container
     expect(firstChildOfSecondCard?.querySelector("img")).toBeInTheDocument();
   });
 
-  it("renders the correct number of steps for each guide", () => {
+  it("renders the correct steps for the data rules guide", () => {
     render(<HelpUs />);
-    // The Admin guide has 4 steps
-    const adminGuideSteps = screen.getAllByText(/Register your admin account|Set up school details/i);
-    expect(adminGuideSteps.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/MUST: Include full name/i)).toBeInTheDocument();
+    expect(screen.getByText(/FORMAT: Your files should be/i)).toBeInTheDocument();
   });
 
   it("applies the correct background color classes", () => {
     render(<HelpUs />);
-    const adminSection = screen.getByText(/Admin Guide Made Simple/i).closest('div');
+    const dataRulesSection = screen.getByText(/Must & Should: Data Rules/i).closest('div');
+    expect(dataRulesSection).toHaveClass("bg-red-500");
+
+    const adminSection = screen.getByText(/Admin: Institutional Control/i).closest('div');
     expect(adminSection).toHaveClass("bg-emerald-300");
   });
 });
