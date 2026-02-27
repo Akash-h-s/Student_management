@@ -87,7 +87,7 @@ export default function AdminUpload() {
   const [progress, setProgress] = useState(0);
 
   // Refs
- const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ==================== WORKFLOW POLLING ====================
   const stopPolling = useCallback(() => {
@@ -99,9 +99,13 @@ export default function AdminUpload() {
 
   const pollWorkflowStatus = useCallback(async (wfId: string) => {
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/workflow-status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ workflowId: wfId }),
       });
 
@@ -182,9 +186,13 @@ export default function AdminUpload() {
         setCurrentStep('Starting workflow...');
         setProgress(15);
 
+        const token = localStorage.getItem('token');
         const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify({
             type: uploadType,
             class: studentClass.trim(),
@@ -361,14 +369,14 @@ interface UploadTypeSelectorProps {
 
 const UploadTypeSelector = React.memo(({ value, onChange, disabled }: UploadTypeSelectorProps) => (
   <div className="mb-6">
-    <label className="block text-sm font-medium text-gray-700 mb-2">
+    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
       Select Upload Category <span className="text-red-500">*</span>
     </label>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as UploadType | '')}
       disabled={disabled}
-      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+      className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
     >
       {UPLOAD_TYPE_OPTIONS.map(option => (
         <option key={option.value} value={option.value}>
@@ -391,7 +399,7 @@ interface StudentFieldsProps {
 const StudentFields = React.memo(({ studentClass, studentSection, onClassChange, onSectionChange, disabled }: StudentFieldsProps) => (
   <div className="mb-6 space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
         Class <span className="text-red-500">*</span>
       </label>
       <input
@@ -400,11 +408,11 @@ const StudentFields = React.memo(({ studentClass, studentSection, onClassChange,
         value={studentClass}
         onChange={(e) => onClassChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
         Section <span className="text-red-500">*</span>
       </label>
       <input
@@ -413,7 +421,7 @@ const StudentFields = React.memo(({ studentClass, studentSection, onClassChange,
         value={studentSection}
         onChange={(e) => onSectionChange(e.target.value)}
         disabled={disabled}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
       />
     </div>
   </div>
