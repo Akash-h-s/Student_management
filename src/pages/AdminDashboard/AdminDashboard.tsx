@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Link } from 'react-router-dom';
 import { Upload, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -18,7 +18,7 @@ export default function AdminDashboard() {
       title: 'Upload Teacher Data',
       description: 'Upload teacher lists via Excel or PDF',
       icon: Users,
-      link: '/admin/upload', 
+      link: '/admin/upload',
       color: 'bg-green-500',
     },
   ];

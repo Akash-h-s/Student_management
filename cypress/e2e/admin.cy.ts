@@ -4,11 +4,28 @@ describe('Admin Role Flows', () => {
 
     beforeEach(() => {
         // Intercept the login call to Mock the backend response
+        // valid-looking JWT: header.payload.signature
+        const payload = JSON.stringify({
+            id: 1,
+            name: 'Admin User',
+            email: adminEmail,
+            role: 'admin',
+            'https://hasura.io/jwt/claims': {
+                'x-hasura-default-role': 'admin',
+                'x-hasura-user-id': '1'
+            },
+            exp: Math.floor(Date.now() / 1000) + 3600 * 24
+        });
+
+        // Simple Base64Url encoding (replace + with -, / with _, remove =)
+        const encodedPayload = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const mockJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + encodedPayload + '.mocksignature';
+
         cy.intercept('POST', '**/hasura/login', {
             statusCode: 200,
             body: {
                 success: true,
-                token: 'mock-admin-token-123',
+                token: mockJwt,
                 user: {
                     id: 1,
                     name: 'Admin User',
@@ -104,7 +121,8 @@ describe('Admin Role Flows', () => {
         cy.contains('Processing Workflow').should('be.visible');
 
         // Wait for polling to complete and show success
-        cy.contains('Upload Successful', { timeout: 10000 }).should('be.visible');
+        // Increased timeout to account for polling intervals (2000ms * 3 checks + overhead)
+        cy.contains('Upload Successful', { timeout: 20000 }).should('be.visible');
         cy.contains('Successfully processed 50 records').should('be.visible');
     });
 

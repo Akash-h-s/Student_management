@@ -6,7 +6,7 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { onError } from '@apollo/client/link/error';
 import { createClient } from 'graphql-ws';
 
-// HTTP connection to Hasura
+
 const httpLink = createHttpLink({
   uri: 'http://localhost:8085/v1/graphql',
 });
@@ -109,12 +109,12 @@ export const apolloClient = new ApolloClient({
       Query: {
         fields: {
           chats: {
-            merge(existing, incoming) {
+            merge(_existing, incoming) {
               return incoming;
             },
           },
           messages: {
-            merge(existing, incoming) {
+            merge(_existing, incoming) {
               return incoming;
             },
           },

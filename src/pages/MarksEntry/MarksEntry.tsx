@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Save, Search, AlertCircle, Edit2, Plus, X } from 'lucide-react';
 import { useLazyQuery, useMutation, ApolloError } from '@apollo/client';
+import CustomSelect from '../../components/CustomSelect/CustomSelect';
 import { useAuth } from '../../context/AuthContext';
 import {
   GET_STUDENTS_BY_CLASS_SECTION,
@@ -131,22 +132,21 @@ const AlertBox = React.memo(({ type, icon, children }: { type: 'info' | 'success
 const FormInput = React.memo(({ label, value, onChange, placeholder, disabled, required }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, disabled?: boolean, required?: boolean }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
-    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="w-full px-3 py-3 sm:px-4 sm:py-2.5 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
   </div>
 ));
 
 const FormSelect = React.memo(({ label, value, onChange, options, disabled, required }: { label: string, value: string, onChange: (v: string) => void, options: readonly string[], disabled?: boolean, required?: boolean }) => (
   <div>
-    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">{label} {required && <span className="text-red-500">*</span>}</label>
-    <select
+    <CustomSelect
+      label={label}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
+      options={options}
       disabled={disabled}
-      className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
-    >
-      <option value="">Select {label}</option>
-      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-    </select>
+      required={required}
+      placeholder={`Select ${label}`}
+    />
   </div>
 ));
 
@@ -201,20 +201,17 @@ const SubjectSelectWithNew = React.memo(({
       </label>
       {!showAddNew ? (
         <div className="flex gap-2">
-          <select
+          <CustomSelect
             value={value}
-            onChange={(e) => {
-              onChange(e.target.value);
+            onChange={(v) => {
+              onChange(v);
               setSimilarSuggestion(undefined);
             }}
+            options={subjects.map(s => ({ value: s.name, label: s.name }))}
             disabled={disabled}
-            className="flex-1 px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            <option value="">Select Subject</option>
-            {subjects.map(subject => (
-              <option key={subject.id} value={subject.name}>{subject.name}</option>
-            ))}
-          </select>
+            className="flex-1"
+            placeholder="Select Subject"
+          />
           <button
             type="button"
             onClick={() => setShowAddNew(true)}
@@ -234,14 +231,14 @@ const SubjectSelectWithNew = React.memo(({
                 <button
                   type="button"
                   onClick={() => handleUseSimilar(similarSuggestion)}
-                  className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+                  className="px-4 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 flex-1 sm:flex-none"
                 >
                   Yes, Use It
                 </button>
                 <button
                   type="button"
                   onClick={() => setSimilarSuggestion(undefined)}
-                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                  className="px-4 py-2 bg-gray-400 text-white rounded text-sm hover:bg-gray-500 flex-1 sm:flex-none"
                 >
                   No, Add New
                 </button>
@@ -286,13 +283,14 @@ const SubjectSelectWithNew = React.memo(({
 
 SubjectSelectWithNew.displayName = 'SubjectSelectWithNew';
 
-const StudentRow = React.memo(({ student, index, markData, maxMarks, onMarksChange, onRemarksChange, isEditing }: { student: Student, index: number, markData: MarkEntry, maxMarks: number, onMarksChange: (id: number, m: string) => void, onRemarksChange: (id: number, r: string) => void, isEditing?: boolean }) => (
-  <tr className={`hover:bg-gray-50 ${isEditing ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}>
+const StudentRow = React.memo(({ student, index, markData, maxMarks, onMarksChange, onRemarksChange, isEditing, isPending }: { student: Student, index: number, markData: MarkEntry, maxMarks: number, onMarksChange: (id: number, m: string) => void, onRemarksChange: (id: number, r: string) => void, isEditing?: boolean, isPending?: boolean }) => (
+  <tr className={`hover:bg-gray-50 ${isEditing ? 'bg-blue-50 border-l-4 border-blue-500' : ''} ${isPending ? 'bg-yellow-50' : ''}`}>
     <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
     <td className="px-4 py-3 text-sm text-gray-700">{student.admission_no}</td>
     <td className="px-4 py-3 text-sm font-medium text-gray-900 flex items-center gap-2">
       {student.name}
       {isEditing && <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded"><Edit2 className="w-3 h-3" /> Edit</span>}
+      {isPending && <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded"><AlertCircle className="w-3 h-3" /> Pending</span>}
     </td>
     <td className="px-4 py-3">
       <input type="number" min="0" max={maxMarks} step="0.5" value={markData.marks_obtained} onChange={(e) => onMarksChange(student.id, e.target.value)} className="w-16 sm:w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />

@@ -3,12 +3,29 @@ describe('Teacher Role Flows', () => {
     const teacherPassword = 'teacher';
 
     beforeEach(() => {
+        // valid-looking JWT: header.payload.signature
+        const payload = JSON.stringify({
+            id: 2,
+            name: 'Teacher User',
+            email: teacherEmail,
+            role: 'teacher',
+            'https://hasura.io/jwt/claims': {
+                'x-hasura-default-role': 'teacher',
+                'x-hasura-user-id': '2'
+            },
+            exp: Math.floor(Date.now() / 1000) + 3600 * 24
+        });
+
+        // Simple Base64Url encoding (replace + with -, / with _, remove =)
+        const encodedPayload = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const mockJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + encodedPayload + '.mocksignature';
+
         // Intercept the login call
         cy.intercept('POST', '**/hasura/login', {
             statusCode: 200,
             body: {
                 success: true,
-                token: 'mock-teacher-token-456',
+                token: mockJwt,
                 user: {
                     id: 2,
                     name: 'Teacher User',
@@ -47,6 +64,7 @@ describe('Teacher Role Flows', () => {
                     }
                 });
             } else if (req.body.operationName === 'GetStudentsByClassSection') {
+                req.alias = 'getStudents';
                 req.reply({
                     data: {
                         class_sections: [{
@@ -57,13 +75,20 @@ describe('Teacher Role Flows', () => {
                         }]
                     }
                 });
-            } else if (req.body.operationName === 'GetOrCreateSubject' || req.body.operationName === 'GetOrCreateExam') {
+            } else if (req.body.operationName === 'GetOrCreateSubject') {
                 req.reply({
                     data: {
-                        insert_subjects_one: { id: 1 },
-                        insert_exams_one: { id: 1 }
+                        insert_subjects_one: { id: 1, name: 'mathematics' }
                     }
                 });
+            } else if (req.body.operationName === 'GetOrCreateExam') {
+                req.reply({
+                    data: {
+                        insert_exams_one: { id: 1, name: 'FA1' }
+                    }
+                });
+            } else if (req.body.operationName === 'CheckExamExists') {
+                req.reply({ data: { exams: [] } });
             } else if (req.body.operationName === 'CheckExistingMarks') {
                 req.reply({ data: { marks: [] } });
             } else if (req.body.operationName === 'InsertMarks') {
@@ -82,16 +107,16 @@ describe('Teacher Role Flows', () => {
         // 2. Select Subject
         // Wait for initial subject load if any, or just type/select
         // Since we mock GetAllSubjects, it might populate if logic runs on mount/change
-        cy.get('select').eq(0).select('mathematics'); // Assuming first select is subject (based on UI order: class(input), section(input), subject(select))
-        // Actually looking at code: SubjectSelectWithNew is likely the first 'select' element 
-        // UI Grid: Class(Input), Section(Input), Subject(Select+New), Test Type(Select), Year(Input)
-        // So 1st select is Subject. 2nd select is Test Type.
+        cy.get('select').eq(0).select('mathematics');
 
         // 3. Select Test Type
         cy.get('select').eq(1).select('FA1');
 
         // 4. Click Fetch Students
         cy.contains('button', 'Fetch Students').click();
+
+        // Wait for the students to be fetched specifically
+        cy.wait('@getStudents');
 
         // 5. Verify Students Loaded
         cy.contains('John Doe').should('be.visible');
@@ -121,7 +146,9 @@ describe('Teacher Role Flows', () => {
 
         // Mock Chat Subscriptions/Queries
         cy.intercept('POST', '**/v1/graphql', (req) => {
-            if (req.body.operationName === 'SearchParents' || req.body.operationName === 'GetAllParents') {
+            const { operationName } = req.body;
+
+            if (operationName === 'SearchParents' || operationName === 'GetAllParents') {
                 req.reply({
                     data: {
                         parents: [
@@ -130,19 +157,17 @@ describe('Teacher Role Flows', () => {
                         ]
                     }
                 });
-            } else if (req.body.operationName === 'CheckExistingChat') {
+            } else if (operationName === 'CheckExistingChat') {
+                req.reply({
+                    data: { chats: [] }
+                });
+            } else if (operationName === 'CreateChat') {
                 req.reply({
                     data: {
-                        chats: []
+                        insert_chats_one: { id: 99, type: 'group', name: 'Math Study Group' }
                     }
                 });
-            } else if (req.body.operationName === 'CreateChat') {
-                req.reply({
-                    data: {
-                        insert_chats_one: { id: 99 }
-                    }
-                });
-            } else if (req.body.operationName === 'AddChatParticipants') {
+            } else if (operationName === 'AddChatParticipants') {
                 req.reply({
                     data: {
                         insert_chat_participants: { affected_rows: 2 }
@@ -152,7 +177,7 @@ describe('Teacher Role Flows', () => {
         }).as('gqlGroupOperations');
 
         // --- Create Group Flow ---
-        cy.contains('button', 'New Group').click();
+        cy.contains('button', 'New Group').should('be.visible').click();
         cy.get('input[placeholder*="Group name"]').should('be.visible').type('Math Study Group');
         cy.contains('button', 'Create Group').should('be.disabled'); // Initial check
 
@@ -162,6 +187,7 @@ describe('Teacher Role Flows', () => {
 
         cy.contains('button', 'Create Group').should('not.be.disabled').click();
 
+        // Stub logic for window.alert to prevent blocking
         cy.on('window:alert', (str) => {
             expect(str).to.equal('Group created successfully!');
         });
@@ -174,7 +200,9 @@ describe('Teacher Role Flows', () => {
 
         // Mock setup (Repeated for isolation)
         cy.intercept('POST', '**/v1/graphql', (req) => {
-            if (req.body.operationName === 'SearchParents') {
+            const { operationName } = req.body;
+
+            if (operationName === 'SearchParents') {
                 req.reply({
                     data: {
                         parents: [
@@ -182,23 +210,47 @@ describe('Teacher Role Flows', () => {
                         ]
                     }
                 });
-            } else if (req.body.operationName === 'CheckExistingChat') {
+            } else if (operationName === 'CheckExistingChat') {
                 req.reply({ data: { chats: [] } });
-            } else if (req.body.operationName === 'CreateChat') {
-                req.reply({ data: { insert_chats_one: { id: 100 } } });
-            } else if (req.body.operationName === 'AddChatParticipants') {
+            } else if (operationName === 'CreateChat') {
+                req.reply({
+                    data: {
+                        insert_chats_one: { id: 100, type: 'direct', name: 'Parent One' }
+                    }
+                });
+            } else if (operationName === 'AddChatParticipants') {
                 req.reply({ data: { insert_chat_participants: { affected_rows: 2 } } });
-            } else if (req.body.operationName === 'SendMessage') {
-                req.reply({ data: { insert_messages_one: { id: 500 } } });
+            } else if (operationName === 'SendMessage') {
+                req.reply({
+                    data: {
+                        insert_messages_one: {
+                            id: 500,
+                            sender_id: 2,
+                            sender_type: 'teacher',
+                            content: 'Hello Mr. Parent',
+                            created_at: new Date().toISOString(),
+                            is_read: false
+                        }
+                    }
+                });
+            } else if (operationName === 'MarkMessagesRead') {
+                req.reply({ data: { update_messages: { affected_rows: 1 } } });
             }
         }).as('gqlMessageOperations');
 
         // --- Send Message Flow ---
-        cy.contains('button', 'New Chat').click();
-        cy.get('input[placeholder*="Search parents"]').type('Parent One');
-        cy.contains('Parent One').click();
+        cy.contains('button', 'New Chat').should('be.visible').click();
+        cy.get('input[placeholder*="Search parents"]').should('be.visible').type('Parent One');
 
-        cy.get('textarea[placeholder="Type a message..."]').type('Hello Mr. Parent');
+        // Wait for results to appear (implied by contains check)
+        cy.contains('Parent One').should('be.visible').click();
+
+        // Wait for chat window to open (textarea presence)
+        cy.get('textarea[placeholder="Type a message..."]').should('be.visible').type('Hello Mr. Parent');
+
+        // Find send button
         cy.get('textarea[placeholder="Type a message..."]').parent().find('button').click();
+
+
     });
 });

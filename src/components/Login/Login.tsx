@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
+import CustomSelect from '../CustomSelect/CustomSelect';
 
 
 type Role = 'student' | 'parent' | 'teacher' | 'admin';
@@ -111,7 +112,7 @@ const InputField = ({
       onChange={(e) => onChange(e.target.value)}
       onKeyPress={onKeyPress}
       autoFocus={autoFocus}
-      className="w-full p-2 sm:p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+      className="w-full p-3 sm:p-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
     />
   </div>
 );
@@ -265,22 +266,12 @@ function Login() {
 
         <div className="space-y-4 sm:space-y-5 md:space-y-6">
           {/* Role Selection */}
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-              Login As
-            </label>
-            <select
-              value={role}
-              onChange={(e) => handleRoleChange(e.target.value as Role)}
-              className="w-full p-2 sm:p-3 text-sm sm:text-base border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all duration-200"
-            >
-              {ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Login As"
+            value={role}
+            onChange={(value) => handleRoleChange(value as Role)}
+            options={ROLE_OPTIONS}
+          />
 
           {/* Identifier Input */}
           <InputField

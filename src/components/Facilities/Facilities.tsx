@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import type{ IconType } from "react-icons";
-import { 
-  FaVideo, 
-  FaLaptop, 
-  FaRobot, 
-  FaComments, 
-  FaBasketballBall, 
-  FaSnowflake, 
-  FaMobileAlt, 
-  FaVideo as FaCctv, 
-  FaBus, 
-  FaBook 
+import type { IconType } from "react-icons";
+import {
+  FaVideo,
+  FaLaptop,
+  FaRobot,
+  FaComments,
+  FaBasketballBall,
+  FaSnowflake,
+  FaMobileAlt,
+  FaVideo as FaCctv,
+  FaBus,
+  FaBook
 } from "react-icons/fa";
 
 interface HeaderContent {
@@ -63,82 +63,82 @@ const HEADER_CONTENT: HeaderContent = {
 };
 
 const FACILITIES: Facility[] = [
-  { 
+  {
     id: 1,
-    Icon: FaVideo, 
-    title: "Smart Classrooms", 
+    Icon: FaVideo,
+    title: "Smart Classrooms",
     desc: "Digital classrooms with projectors and interactive boards for enhanced learning.",
     bgColor: "bg-blue-100",
     iconColor: "text-blue-600"
   },
-  { 
+  {
     id: 2,
-    Icon: FaLaptop, 
-    title: "Advanced Computer Labs", 
+    Icon: FaLaptop,
+    title: "Advanced Computer Labs",
     desc: "Modern computer labs with the latest systems for programming and technology learning.",
     bgColor: "bg-purple-100",
     iconColor: "text-purple-600"
   },
-  { 
+  {
     id: 3,
-    Icon: FaRobot, 
-    title: "Robotics & STEM Programs", 
+    Icon: FaRobot,
+    title: "Robotics & STEM Programs",
     desc: "Hands-on robotics and STEM activities that promote innovation and problem-solving.",
     bgColor: "bg-green-100",
     iconColor: "text-green-600"
   },
-  { 
+  {
     id: 4,
-    Icon: FaComments, 
-    title: "Spoken English & Personality Development", 
+    Icon: FaComments,
+    title: "Spoken English & Personality Development",
     desc: "Training to improve communication, confidence, and leadership skills.",
     bgColor: "bg-yellow-100",
     iconColor: "text-yellow-600"
   },
-  { 
+  {
     id: 5,
-    Icon: FaBasketballBall, 
-    title: "Professional Sports Coaching", 
+    Icon: FaBasketballBall,
+    title: "Professional Sports Coaching",
     desc: "Cricket, football, basketball, karate, and more trained by certified coaches.",
     bgColor: "bg-red-100",
     iconColor: "text-red-600"
   },
-  { 
+  {
     id: 6,
-    Icon: FaSnowflake, 
-    title: "Air-Conditioned Classrooms", 
+    Icon: FaSnowflake,
+    title: "Air-Conditioned Classrooms",
     desc: "Comfortable, air-conditioned classrooms for better learning during all seasons.",
     bgColor: "bg-cyan-100",
     iconColor: "text-cyan-600"
   },
-  { 
+  {
     id: 7,
-    Icon: FaMobileAlt, 
-    title: "Digital Attendance & Parent App", 
+    Icon: FaMobileAlt,
+    title: "Digital Attendance & Parent App",
     desc: "Mobile app for attendance, homework, announcements, and student progress tracking.",
     bgColor: "bg-indigo-100",
     iconColor: "text-indigo-600"
   },
-  { 
+  {
     id: 8,
-    Icon: FaCctv, 
-    title: "CCTV Security", 
+    Icon: FaCctv,
+    title: "CCTV Security",
     desc: "Full CCTV surveillance ensuring student safety throughout the campus.",
     bgColor: "bg-gray-100",
     iconColor: "text-gray-600"
   },
-  { 
+  {
     id: 9,
-    Icon: FaBus, 
-    title: "School Transport with GPS", 
+    Icon: FaBus,
+    title: "School Transport with GPS",
     desc: "Safe school buses with live GPS tracking for parents.",
     bgColor: "bg-orange-100",
     iconColor: "text-orange-600"
   },
-  { 
+  {
     id: 10,
-    Icon: FaBook, 
-    title: "Library & Reading Programs", 
+    Icon: FaBook,
+    title: "Library & Reading Programs",
     desc: "A modern library with books, digital content, and weekly reading sessions.",
     bgColor: "bg-pink-100",
     iconColor: "text-pink-600"
@@ -146,11 +146,11 @@ const FACILITIES: Facility[] = [
 ];
 
 // Reusable Components
-const SectionHeader: React.FC<SectionHeaderProps> = ({ 
-  title, 
-  subtitle, 
-  highlightText, 
-  subtitleEnd 
+const SectionHeader: React.FC<SectionHeaderProps> = ({
+  title,
+  subtitle,
+  highlightText,
+  subtitleEnd
 }) => (
   <div className="text-center mb-6 sm:mb-10">
     <h1 className="text-2xl sm:text-3xl md:text-4xl text-white mb-2 sm:mb-3 font-semibold px-4">{title}</h1>
@@ -162,12 +162,12 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   </div>
 );
 
-const FacilityCard: React.FC<FacilityCardProps> = ({ 
-  Icon, 
-  title, 
-  desc, 
-  bgColor, 
-  iconColor 
+const FacilityCard: React.FC<FacilityCardProps> = ({
+  Icon,
+  title,
+  desc,
+  bgColor,
+  iconColor
 }) => (
   <div className="flex items-start sm:items-center gap-3 sm:gap-4 text-left cursor-pointer hover:scale-105 transition-transform">
     <div className={`w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 ${bgColor} rounded-lg sm:rounded-xl text-2xl sm:text-2xl md:text-3xl flex items-center justify-center flex-shrink-0`}>
@@ -199,12 +199,12 @@ const Popup: React.FC<PopupProps> = ({ isOpen, message, onClose }) => {
 };
 
 // Main Component
-const Facilities: React.FC<FacilitiesProps> = ({ 
-  facilities = FACILITIES, 
-  headerContent = HEADER_CONTENT 
+const Facilities: React.FC<FacilitiesProps> = ({
+  facilities = FACILITIES,
+  headerContent = HEADER_CONTENT
 }) => {
   const [popup, setPopup] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>("");
+  const [message] = useState<string>("");
 
   const handleClosePopup = () => setPopup(false);
 
@@ -232,10 +232,10 @@ const Facilities: React.FC<FacilitiesProps> = ({
         </div>
       </div>
 
-      <Popup 
-        isOpen={popup} 
-        message={message} 
-        onClose={handleClosePopup} 
+      <Popup
+        isOpen={popup}
+        message={message}
+        onClose={handleClosePopup}
       />
     </div>
   );
