@@ -4,6 +4,7 @@ import { useAppDispatch } from '../../store/hooks';
 import { loginUser } from '../../store/slices/authSlice';
 import { authService } from '../../services/authService';
 import CustomSelect from '../CustomSelect/CustomSelect';
+import ForgotPassword from './atoms/ForgotPassword';
 
 import type { Role } from './types';
 import { ROLE_CONFIG, ROLE_OPTIONS, ERROR_MESSAGES } from './constants';
@@ -23,6 +24,7 @@ function Login() {
   const [studentName, setStudentName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const config = ROLE_CONFIG[role];
 
@@ -99,58 +101,79 @@ function Login() {
           <p className="text-xs sm:text-sm text-gray-600">Secure Role-Based Access</p>
         </div>
 
-        {/* Error Message */}
-        {error && <ErrorMessage message={error} />}
-
-        <div className="space-y-4 sm:space-y-5 md:space-y-6">
-          {/* Role Selection */}
-          <CustomSelect
-            label="Login As"
-            value={role}
-            onChange={(value) => handleRoleChange(value as Role)}
-            options={ROLE_OPTIONS}
+        {showForgotPassword ? (
+          <ForgotPassword
+            role={role}
+            onBack={() => setShowForgotPassword(false)}
+            onSuccess={() => setShowForgotPassword(false)}
           />
+        ) : (
+          <>
+            {/* Error Message */}
+            {error && <ErrorMessage message={error} />}
 
-          {/* Identifier Input */}
-          <InputField
-            label={config.identifierLabel}
-            type={config.identifierType}
-            value={identifier}
-            onChange={setIdentifier}
-            onKeyPress={handleKeyPress}
-            autoFocus
-          />
+            <div className="space-y-4 sm:space-y-5 md:space-y-6">
+              {/* Role Selection */}
+              <CustomSelect
+                label="Login As"
+                value={role}
+                onChange={(value) => handleRoleChange(value as Role)}
+                options={ROLE_OPTIONS}
+              />
 
-          {/* Password Input (for roles that require it) */}
-          {config.requiresPassword && (
-            <InputField
-              label={`${role.charAt(0).toUpperCase() + role.slice(1)} Password`}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              onKeyPress={handleKeyPress}
-            />
-          )}
+              {/* Identifier Input */}
+              <InputField
+                label={config.identifierLabel}
+                type={config.identifierType}
+                value={identifier}
+                onChange={setIdentifier}
+                onKeyPress={handleKeyPress}
+                autoFocus
+              />
 
-          {/* Student Name Input */}
-          {role === 'student' && (
-            <InputField
-              label="Full Name"
-              type="text"
-              value={studentName}
-              onChange={setStudentName}
-              onKeyPress={handleKeyPress}
-            />
-          )}
+              {/* Password Input (for roles that require it) */}
+              {config.requiresPassword && (
+                <div className="space-y-1">
+                  <InputField
+                    label={`${role.charAt(0).toUpperCase() + role.slice(1)} Password`}
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    onKeyPress={handleKeyPress}
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-xs text-[1rem] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          {/* Submit Button */}
-          <LoadingButton
-            onClick={handleLogin}
-            disabled={loading}
-            loading={loading}
-            requiresPassword={config.requiresPassword}
-          />
-        </div>
+              {/* Student Name Input */}
+              {role === 'student' && (
+                <InputField
+                  label="Full Name"
+                  type="text"
+                  value={studentName}
+                  onChange={setStudentName}
+                  onKeyPress={handleKeyPress}
+                />
+              )}
+
+              {/* Submit Button */}
+              <LoadingButton
+                onClick={handleLogin}
+                disabled={loading}
+                loading={loading}
+                requiresPassword={config.requiresPassword}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
