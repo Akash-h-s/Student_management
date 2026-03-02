@@ -30,7 +30,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
+    
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -44,7 +44,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
         };
     }, []);
 
-    // normalize options to Option[]
+
     const normalizedOptions: Option[] = React.useMemo(() => {
         if (options.length === 0) return [];
         if (typeof options[0] === 'string') {

@@ -1,18 +1,28 @@
 // src/components/ChatSystem.stories.tsx
 import type { Meta, StoryObj } from '@storybook/react';
 import { MockedProvider } from '@apollo/client/testing';
-import { AuthContext } from '../../context/AuthContext';
-import ChatSystem from '../ChatPage/ChatPage'; 
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '../../store/slices/authSlice';
+import ChatSystem from '../ChatPage/ChatPage';
+
+const createMockStore = (initialState: any) => configureStore({
+  reducer: {
+    auth: authReducer,
+  },
+  preloadedState: {
+    auth: initialState
+  }
+});
 
 const meta: Meta<typeof ChatSystem> = {
   title: 'Features/Communication/ChatSystem',
   component: ChatSystem,
   parameters: { layout: 'fullscreen' },
-  // Adding the MockedProvider as a global decorator for all stories in this file
   decorators: [
     (Story) => (
       <MockedProvider mocks={[]} addTypename={false}>
-        <Story />
+        {Story()}
       </MockedProvider>
     ),
   ],
@@ -21,27 +31,30 @@ const meta: Meta<typeof ChatSystem> = {
 export default meta;
 type Story = StoryObj<typeof ChatSystem>;
 
-const MockProvider = ({ children, role }: any) => (
-  <AuthContext.Provider value={{ 
-    user: { id: 1, name: role === 'teacher' ? 'Prof. McGonagall' : 'Mrs. Weasley', role },
-    loading: false 
-  } as any}>
-    {children}
-  </AuthContext.Provider>
-);
-
 export const TeacherView: Story = {
-  render: () => (
-    <MockProvider role="teacher">
-      <ChatSystem />
-    </MockProvider>
-  ),
+  decorators: [
+    (Story) => (
+      <Provider store={createMockStore({
+        user: { id: 1, name: 'Prof. McGonagall', role: 'teacher' },
+        isAuthenticated: true,
+        loading: false
+      })}>
+        {Story()}
+      </Provider>
+    )
+  ]
 };
 
 export const ParentView: Story = {
-  render: () => (
-    <MockProvider role="parent">
-      <ChatSystem />
-    </MockProvider>
-  ),
+  decorators: [
+    (Story) => (
+      <Provider store={createMockStore({
+        user: { id: 2, name: 'Mrs. Weasley', role: 'parent' },
+        isAuthenticated: true,
+        loading: false
+      })}>
+        {Story()}
+      </Provider>
+    )
+  ]
 };

@@ -5,7 +5,7 @@ export const GET_ALL_SUBJECTS = gql`
     subjects(
       where: { class_name: { _eq: $className } }
       order_by: { name: asc }
-      distinct_on: name
+      distinct_on: [name]
     ) {
       id
       name
