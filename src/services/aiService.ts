@@ -46,6 +46,7 @@ export const reviewMarksWithAI = async (payload: {
     marks: Record<string, { marks_obtained: number | undefined; max_marks: number; grade: string }>;
     subject: string;
     exam: string;
+    academicYear?: string;
 }): Promise<AIReviewData> => {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE}/api/ai/review-marks`, {
@@ -74,6 +75,7 @@ export const getClassAnalysis = async (payload: {
     marks: Record<string, { marks_obtained: number | undefined; max_marks: number; grade: string }>;
     subject: string;
     exam: string;
+    academicYear?: string;
     className: string;
     section: string;
 }): Promise<AIClassAnalysisData> => {

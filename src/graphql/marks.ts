@@ -97,10 +97,13 @@ export const CHECK_EXISTING_MARKS = gql`
 
 // Query to fetch all class marks for an exam and subject
 export const GET_CLASS_MARKS_BY_EXAM = gql`
-  query GetClassMarksByExam($examName: String!, $subjectName: String!) {
+  query GetClassMarksByExam($examName: String!, $subjectName: String!, $academicYear: String!) {
     marks(
       where: {
-        exam: { name: { _eq: $examName } }
+        exam: { 
+          name: { _eq: $examName },
+          academic_year: { _eq: $academicYear }
+        }
         subject: { name: { _eq: $subjectName } }
       }
       order_by: { student_id: asc }

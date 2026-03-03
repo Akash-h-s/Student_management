@@ -21,12 +21,18 @@ export const groupMarksByExam = (marks: Mark[]): Record<string, Mark[]> => {
     const seenSubjectsByExam: Record<number, Set<number>> = {};
 
     marks.forEach((mark) => {
+        // Defensive check to skip invalid data
+        if (!mark.exam?.id || !mark.subject?.id) {
+            console.warn('Skipping mark entry due to missing exam or subject data:', mark);
+            return;
+        }
+
         const examId = mark.exam.id;
 
         // Initialize exam tracking if first time seeing this exam
         if (!seenExamIds.has(examId)) {
             seenExamIds.add(examId);
-            examKeyMapping[examId] = `${mark.exam.name} (${mark.exam.academic_year})`;
+            examKeyMapping[examId] = `${mark.exam.name || 'Unknown Exam'} (${mark.exam.academic_year || 'N/A'})`;
             seenSubjectsByExam[examId] = new Set<number>();
         }
 
@@ -66,7 +72,7 @@ export const prepareMarkscardData = (student: Student, marks: Mark[], examName: 
         school_phone: schoolAdmin?.school_phone || '',
         school_logo_url: schoolAdmin?.school_logo_url || '',
         marks: marks.map((m) => ({
-            subject: m.subject.name,
+            subject: m.subject?.name || 'Unknown Subject',
             marks_obtained: m.marks_obtained,
             max_marks: m.max_marks,
             grade: m.grade,

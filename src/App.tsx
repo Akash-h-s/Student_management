@@ -24,6 +24,8 @@ import AdminUpload from './pages/AdminUpload/AdminUpload';
 import MarksEntry from './pages/MarksEntry/MarksEntry';
 import ChatPage from './pages/ChatPage/ChatPage';  // This will now use Apollo!
 import StudentDetails from './pages/StudentDetails/StudentDetails';
+import MarksReview from './pages/MarksReview/MarksReview';
+import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
 
 function Unauthorized() {
   return (
@@ -64,6 +66,7 @@ export default function App() {
         {/* Auth Logic: Redirect if already logged in */}
         <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Login />} />
         <Route path="/signup" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* ADMIN ROUTES */}
@@ -80,6 +83,9 @@ export default function App() {
         } />
         <Route path="/teacher/marks-entry" element={
           <ProtectedRoute allowedRoles={['teacher']}><MarksEntry /></ProtectedRoute>
+        } />
+        <Route path="/teacher/marks-review" element={
+          <ProtectedRoute allowedRoles={['teacher']}><MarksReview /></ProtectedRoute>
         } />
         <Route path="/teacher/chat" element={
           <ProtectedRoute allowedRoles={['teacher']}><ChatPage /></ProtectedRoute>

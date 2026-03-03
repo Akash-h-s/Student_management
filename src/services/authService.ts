@@ -64,4 +64,40 @@ export const authService = {
 
         return result;
     },
+
+    async forgotPassword(email: string, role: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/hasura/forgot-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, role }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Verification failed');
+        }
+
+        return result;
+    },
+
+    async resetPassword(email: string, role: string, newPassword: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/hasura/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, role, newPassword }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Password reset failed');
+        }
+
+        return result;
+    },
 };

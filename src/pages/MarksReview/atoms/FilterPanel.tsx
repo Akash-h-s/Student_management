@@ -4,10 +4,12 @@ import { Search, AlertCircle } from 'lucide-react';
 interface FilterPanelProps {
     className: string;
     sectionName: string;
+    academicYear: string;
     examName: string;
     subjectName: string;
     onChangeClass: (value: string) => void;
     onChangeSection: (value: string) => void;
+    onChangeAcademicYear: (value: string) => void;
     onChangeExam: (value: string) => void;
     onChangeSubject: (value: string) => void;
     onLoadMarks: () => void;
@@ -19,10 +21,12 @@ interface FilterPanelProps {
 export const FilterPanel = React.memo(({
     className,
     sectionName,
+    academicYear,
     examName,
     subjectName,
     onChangeClass,
     onChangeSection,
+    onChangeAcademicYear,
     onChangeExam,
     onChangeSubject,
     onLoadMarks,
@@ -31,7 +35,7 @@ export const FilterPanel = React.memo(({
     successMessage
 }: FilterPanelProps) => (
     <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <input
                 type="text"
                 placeholder="Class (e.g., 10)"
@@ -44,6 +48,13 @@ export const FilterPanel = React.memo(({
                 placeholder="Section (e.g., A)"
                 value={sectionName}
                 onChange={(e) => onChangeSection(e.target.value)}
+                className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            />
+            <input
+                type="text"
+                placeholder="Year (e.g., 2023-24)"
+                value={academicYear}
+                onChange={(e) => onChangeAcademicYear(e.target.value)}
                 className="px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             />
             <input

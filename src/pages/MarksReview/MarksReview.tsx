@@ -21,6 +21,7 @@ const MarksReview: React.FC = () => {
 
   const [className, setClassName] = useState('');
   const [sectionName, setSectionName] = useState('');
+  const [academicYear, setAcademicYear] = useState('');
   const [examName, setExamName] = useState('');
   const [subjectName, setSubjectName] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
@@ -86,12 +87,12 @@ const MarksReview: React.FC = () => {
   });
 
   const handleLoadMarks = () => {
-    if (!className || !sectionName || !examName || !subjectName) {
+    if (!className || !sectionName || !academicYear || !examName || !subjectName) {
       setErrorMessage('Please fill all fields');
       return;
     }
     fetchStudents({ variables: { className: className.trim(), sectionName: sectionName.trim() } });
-    getClassMarks({ variables: { examName: examName.trim(), subjectName: subjectName.trim() } });
+    getClassMarks({ variables: { examName: examName.trim(), subjectName: subjectName.trim(), academicYear: academicYear.trim() } });
   };
 
   const handleCellChange = useCallback((studentId: number, value: string) => {
@@ -163,6 +164,7 @@ const MarksReview: React.FC = () => {
         marks: marksForReview,
         subject: subjectName,
         exam: examName,
+        academicYear: academicYear,
       });
       setAiReview(review);
     } catch (err: any) {
@@ -190,6 +192,7 @@ const MarksReview: React.FC = () => {
         marks: marksForAnalysis,
         subject: subjectName,
         exam: examName,
+        academicYear: academicYear,
         className: className,
         section: sectionName,
       });
@@ -209,10 +212,12 @@ const MarksReview: React.FC = () => {
         <FilterPanel
           className={className}
           sectionName={sectionName}
+          academicYear={academicYear}
           examName={examName}
           subjectName={subjectName}
           onChangeClass={setClassName}
           onChangeSection={setSectionName}
+          onChangeAcademicYear={setAcademicYear}
           onChangeExam={setExamName}
           onChangeSubject={setSubjectName}
           onLoadMarks={handleLoadMarks}
@@ -289,9 +294,9 @@ const MarksReview: React.FC = () => {
                 <div className="p-6 space-y-5">
                   {/* Rating Badge */}
                   <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border font-semibold ${classAnalysis.overall_rating === 'Excellent' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      classAnalysis.overall_rating === 'Good' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        classAnalysis.overall_rating === 'Average' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                          'bg-red-50 text-red-700 border-red-200'
+                    classAnalysis.overall_rating === 'Good' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      classAnalysis.overall_rating === 'Average' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                        'bg-red-50 text-red-700 border-red-200'
                     }`}>
                     <span className="text-xl">{classAnalysis.overall_rating === 'Excellent' ? '🏆' : classAnalysis.overall_rating === 'Good' ? '⭐' : '📊'}</span>
                     <span>{classAnalysis.overall_rating}</span>

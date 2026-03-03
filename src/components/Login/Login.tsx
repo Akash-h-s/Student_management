@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch } from '../../store/hooks';
 import { loginUser } from '../../store/slices/authSlice';
 import { authService } from '../../services/authService';
@@ -123,13 +123,23 @@ function Login() {
 
           {/* Password Input (for roles that require it) */}
           {config.requiresPassword && (
-            <InputField
-              label={`${role.charAt(0).toUpperCase() + role.slice(1)} Password`}
-              type="password"
-              value={password}
-              onChange={setPassword}
-              onKeyPress={handleKeyPress}
-            />
+            <div className="space-y-1">
+              <InputField
+                label={`${role.charAt(0).toUpperCase() + role.slice(1)} Password`}
+                type="password"
+                value={password}
+                onChange={setPassword}
+                onKeyPress={handleKeyPress}
+              />
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
           )}
 
           {/* Student Name Input */}

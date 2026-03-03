@@ -14,7 +14,7 @@ export const MarkRow = React.memo(({ mark }: MarkRowProps) => {
     return (
         <tr className={STYLES.tableRow}>
             <td className={STYLES.tableCell}>
-                <span className="truncate block max-w-[100px] md:max-w-none">{mark.subject.name}</span>
+                <span className="truncate block max-w-[100px] md:max-w-none">{mark.subject?.name || 'Unknown Subject'}</span>
             </td>
             <td className={STYLES.tableCell}>{mark.marks_obtained}</td>
             <td className={STYLES.tableCell}>{mark.max_marks}</td>

@@ -21,6 +21,7 @@ export const ROLE_NAV_LINKS: Record<Role, NavLink[]> = {
     teacher: [
         { to: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/teacher/marks-entry', label: 'Marks Entry', icon: FileText },
+        { to: '/teacher/marks-review', label: 'Marks Review', icon: FileText },
         { to: '/teacher/chat', label: 'Messages', icon: MessageCircle },
     ],
     parent: [
